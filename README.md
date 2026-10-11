@@ -19,13 +19,14 @@ Files is an experimental GPU-rendered desktop file manager that combines an Expl
 | Directory listing | Name/size/modified ordering, folders first, optional hidden entries |
 | Search | Case-insensitive filter of the **current directory only**; no recursive index |
 | Explorer-like UI | Windows 11-inspired light palette, Ribbon, tabs, Details/Tiles, metadata panel, Ctrl-click selection and optional row numbers |
-| File handling | Open, create folder or blank text file, rename one item, numbered batch rename, copy and same-volume cut/move, recycle bin |\n| Context menu | GPUI Kit right-click on file rows/tiles with Open, Copy, Cut, Rename, Trash, Properties (metadata), Copy Path and pin folders |\n| Quick Access | Windows known folders, local drives, user-pinned folders saved under the user's configuration directory |
+| File handling | Open, create folder or blank text file, rename one item, numbered batch rename, copy and same-volume cut/move, recycle bin |\n| Context menu | GPUI Kit right-click on file rows/tiles with Open, Preview, Copy, Cut, Rename, Trash, Properties (metadata), Copy Path and pin folders |\n| Quick Access | Windows known folders, local drives, user-pinned folders saved under the user's configuration directory |
+| Preview pane | Read-only PNG/JPEG/GIF/WebP/BMP and bounded UTF-8 text/code previews (64 KiB); PDF and Office files are not supported |
 | Export | Current directory listing to non-overwriting CSV (UTF-8 BOM; spreadsheet formula prefixes sanitized) |
 | Live updates | `notify` watches the current directory (non-recursive) |
 | Background work | One copy, move or CSV export task at a time; no progress or cancellation yet |
 | Tests | Isolated filesystem unit/regression tests; Windows CI |
 
-**Not implemented:** virtualized tree, real thumbnails/content previews, drag-and-drop, cross-volume cut/move, formula-based batch rename, indexed search, undo, copy progress/cancellation and robust recovery after partial transfers. Numbered batch rename and Ctrl-click multi-selection are experimental and don't yet extend to every file operation. See the [feature-parity tracker](docs/FEATURE_PARITY.md) for the full comparison with the reference app.
+**Not implemented:** virtualized tree, grid thumbnails, PDF/Office/audio/video previews, drag-and-drop, cross-volume cut/move, formula-based batch rename, indexed search, undo, copy progress/cancellation and robust recovery after partial transfers. Numbered batch rename and Ctrl-click multi-selection are experimental and don't yet extend to every file operation. See the [feature-parity tracker](docs/FEATURE_PARITY.md) for the full comparison with the reference app.
 
 ## Getting started
 
@@ -67,6 +68,7 @@ First builds may take several minutes because the GPUI UI toolkit has substantia
 | Ctrl + T / Ctrl + W | Open a new tab / Close active tab |\n| Shift + Enter | Open a selected folder in a new tab |\n| Alt + Enter | Show metadata panel for selected item |\n| Ctrl + A | Select all items in current directory |\n| Escape | Clear file selection |
 | Ctrl + Shift + 1 | Switch between Details and Tiles |
 | Alt + Shift + P | Toggle metadata details panel |
+| Ctrl + Shift + P | Toggle read-only file preview panel |
 | Ctrl + Shift + L | Toggle row-number column |
 | Ctrl + click | Select or deselect multiple files for numbered batch renaming |\n| Right-click file or folder | Open GPUI Kit context menu with file operations |
 | Enter | Open selected item |
