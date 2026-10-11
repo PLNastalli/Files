@@ -146,6 +146,16 @@ fn file_context_menu(
             );
         }
     }
+    if !is_folder {
+        let preview_target = path.clone();
+        menu = menu.item(
+            PopupMenuItem::new("Pré-visualizar")
+                .icon(IconName::Eye)
+                .on_click(window.listener_for(view, move |this, _, _, cx| {
+                    this.show_preview(preview_target.clone(), cx);
+                })),
+        );
+    }
     let copy_target = path.clone();
     let cut_target = path.clone();
     let rename_target = path.clone();
