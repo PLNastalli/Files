@@ -447,7 +447,7 @@ impl FilesApp {
                 .bg(if is_selected { rgb(SELECTED) } else { rgb(BG) })
                 .hover(|element| element.bg(rgb(HOVER)))
                 .child(div().w(px(30.)).text_color(rgb(if entry.kind == EntryKind::Folder { ACCENT } else { MUTED })).child(icon))
-                .child(div().flex_1().min_w_0().text_color(rgb(TEXT)).child(entry.name))
+                .child(div().flex_1().min_w_0().text_color(rgb(TEXT)).child(entry.name.clone()))
                 .child(div().w(px(136.)).text_color(rgb(MUTED)).child(entry.kind_label()))
                 .child(div().w(px(92.)).text_color(rgb(MUTED)).child(size_label))
                 .on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
