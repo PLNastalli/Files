@@ -122,7 +122,10 @@ pub fn move_into(source: &Path, destination_directory: &Path) -> io::Result<Path
 pub fn batch_rename_numbered(sources: &[PathBuf], prefix: &str) -> io::Result<Vec<PathBuf>> {
     validate_name(prefix)?;
     if sources.is_empty() {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "Nenhum item selecionado"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Nenhum item selecionado",
+        ));
     }
     let mut proposals = Vec::with_capacity(sources.len());
     let mut used = std::collections::HashSet::new();
@@ -130,15 +133,21 @@ pub fn batch_rename_numbered(sources: &[PathBuf], prefix: &str) -> io::Result<Ve
     for (index, source) in sources.iter().enumerate() {
         let metadata = fs::symlink_metadata(source)?;
         if metadata.file_type().is_symlink() {
-            return Err(io::Error::new(ErrorKind::InvalidInput, "Links simbólicos não são suportados em lote"));
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Links simbólicos não são suportados em lote",
+            ));
         }
-        let parent = source.parent().ok_or_else(|| {
-            io::Error::new(ErrorKind::InvalidInput, "Item sem pasta pai")
-        })?;
+        let parent = source
+            .parent()
+            .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "Item sem pasta pai"))?;
         let canonical = fs::canonicalize(parent)?;
         if let Some(root) = &common_parent {
             if root != &canonical {
-                return Err(io::Error::new(ErrorKind::InvalidInput, "Os itens precisam estar na mesma pasta"));
+                return Err(io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "Os itens precisam estar na mesma pasta",
+                ));
             }
         } else {
             common_parent = Some(canonical);
@@ -146,7 +155,9 @@ pub fn batch_rename_numbered(sources: &[PathBuf], prefix: &str) -> io::Result<Ve
         let extension = if metadata.is_dir() {
             String::new()
         } else {
-            source.extension().filter(|value| !value.is_empty())
+            source
+                .extension()
+                .filter(|value| !value.is_empty())
                 .map(|ext| format!(".{}", ext.to_string_lossy()))
                 .unwrap_or_default()
         };
@@ -154,10 +165,16 @@ pub fn batch_rename_numbered(sources: &[PathBuf], prefix: &str) -> io::Result<Ve
         validate_name(&name)?;
         let target = parent.join(name);
         if !used.insert(target.to_string_lossy().to_lowercase()) {
-            return Err(io::Error::new(ErrorKind::AlreadyExists, "Nomes gerados repetidos"));
+            return Err(io::Error::new(
+                ErrorKind::AlreadyExists,
+                "Nomes gerados repetidos",
+            ));
         }
         if target != *source && fs::symlink_metadata(&target).is_ok() {
-            return Err(io::Error::new(ErrorKind::AlreadyExists, "Um nome gerado já existe"));
+            return Err(io::Error::new(
+                ErrorKind::AlreadyExists,
+                "Um nome gerado já existe",
+            ));
         }
         proposals.push((source.clone(), target));
     }
@@ -183,7 +200,10 @@ pub fn batch_rename_numbered(sources: &[PathBuf], prefix: &str) -> io::Result<Ve
         }
         completed.push((source, target));
     }
-    Ok(completed.into_iter().map(|(_, new_path)| new_path).collect())
+    Ok(completed
+        .into_iter()
+        .map(|(_, new_path)| new_path)
+        .collect())
 }
 
 fn spreadsheet_safe(value: &str) -> String {
@@ -328,7 +348,8 @@ mod tests {
         fs::write(tmp.path().join("Foto 002.txt"), "existing").unwrap();
         assert_eq!(
             batch_rename_numbered(&[a.clone(), b.clone()], "Foto")
-                .unwrap_err().kind(),
+                .unwrap_err()
+                .kind(),
             ErrorKind::AlreadyExists
         );
         assert!(a.exists() && b.exists());

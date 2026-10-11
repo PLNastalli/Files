@@ -253,7 +253,11 @@ impl FilesApp {
                 .child(
                     Button::new("rename-save")
                         .icon(IconName::Check)
-                        .label(if self.selected_paths.len() > 1 { "Renomear lote" } else { "Salvar" })
+                        .label(if self.selected_paths.len() > 1 {
+                            "Renomear lote"
+                        } else {
+                            "Salvar"
+                        })
                         .on_click(cx.listener(|this, _, _, cx| this.confirm_rename(cx))),
                 )
                 .child(
@@ -774,16 +778,14 @@ impl Render for FilesApp {
                     )
                     .when(self.details_open, |this| this.child(self.details_panel(cx))),
             )
-            .child(
-                div()
-                    .bg(rgb(WINDOW_BG))
-                    .child(StatusBar::new().left(self.status.clone()).right(
-                        if self.selected_paths.is_empty() {
-                            "Nenhum item selecionado".to_owned()
-                        } else {
-                            format!("{} item(ns) selecionado(s)", self.selected_paths.len())
-                        },
-                    )),
-            )
+            .child(div().bg(rgb(WINDOW_BG)).child(
+                StatusBar::new().left(self.status.clone()).right(
+                    if self.selected_paths.is_empty() {
+                        "Nenhum item selecionado".to_owned()
+                    } else {
+                        format!("{} item(ns) selecionado(s)", self.selected_paths.len())
+                    },
+                ),
+            ))
     }
 }
