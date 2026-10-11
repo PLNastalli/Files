@@ -8,13 +8,13 @@ use std::{
 };
 
 use files::filesystem::{self, FileEntry, SortBy};
-use gpui_kit::{
-    App, AppContext, Bounds, Context, Entity, FocusHandle, KeyBinding, Subscription, Window,
-    WindowBounds, WindowOptions, actions, px, size,
-};
 use gpui_kit::component::{
     Theme, ThemeMode, TitleBar,
     input::{InputEvent, InputState},
+};
+use gpui_kit::{
+    App, AppContext, Bounds, Context, Entity, FocusHandle, KeyBinding, Subscription, Window,
+    WindowBounds, WindowOptions, actions, px, size,
 };
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 
@@ -22,7 +22,18 @@ mod ui;
 
 actions!(
     files,
-    [Back, Forward, Up, Refresh, NewFolder, Copy, Paste, Delete, OpenSelected, ToggleHidden]
+    [
+        Back,
+        Forward,
+        Up,
+        Refresh,
+        NewFolder,
+        Copy,
+        Paste,
+        Delete,
+        OpenSelected,
+        ToggleHidden
+    ]
 );
 
 struct FilesApp {
@@ -151,18 +162,21 @@ impl FilesApp {
     fn start_watcher_poll(&mut self, cx: &mut Context<Self>) {
         cx.spawn(async move |view, cx| {
             loop {
-                cx.background_executor().timer(Duration::from_millis(750)).await;
+                cx.background_executor()
+                    .timer(Duration::from_millis(750))
+                    .await;
                 if view
                     .update(cx, |this, cx| {
                         let (changed, error) = this
                             .change_rx
                             .as_ref()
-                            .map(|rx| rx.try_iter().fold((false, None), |(changed, error), event| {
-                                match event {
-                                    Ok(_) => (true, error),
-                                    Err(reason) => (changed, Some(reason)),
-                                }
-                            }))
+                            .map(|rx| {
+                                rx.try_iter()
+                                    .fold((false, None), |(changed, error), event| match event {
+                                        Ok(_) => (true, error),
+                                        Err(reason) => (changed, Some(reason)),
+                                    })
+                            })
                             .unwrap_or((false, None));
                         if changed {
                             this.reload(cx);
@@ -272,9 +286,9 @@ impl FilesApp {
         self.transfer_task = Some(cx.spawn(async move |view, cx| {
             let destination_for_copy = destination.clone();
             let result = cx
-                .background_spawn(async move {
-                    filesystem::copy_into(&source, &destination_for_copy)
-                })
+                .background_spawn(
+                    async move { filesystem::copy_into(&source, &destination_for_copy) },
+                )
                 .await;
             _ = view.update(cx, |this, cx| {
                 this.transfer_in_progress = false;

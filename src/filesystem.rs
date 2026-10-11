@@ -97,7 +97,11 @@ pub fn read_directory(path: &Path, show_hidden: bool, sort: SortBy) -> io::Resul
         SortBy::Name => {
             // Cache case-insensitive keys once per entry, not on every comparison.
             entries.sort_by_cached_key(|entry| {
-                (u8::from(entry.kind != EntryKind::Folder), entry.name.to_lowercase(), entry.name.clone())
+                (
+                    u8::from(entry.kind != EntryKind::Folder),
+                    entry.name.to_lowercase(),
+                    entry.name.clone(),
+                )
             });
         }
         SortBy::Size => {
@@ -152,7 +156,10 @@ pub fn create_folder(parent: &Path) -> io::Result<PathBuf> {
             Err(error) => return Err(error),
         }
     }
-    Err(io::Error::new(ErrorKind::AlreadyExists, "Muitas pastas com o mesmo nome"))
+    Err(io::Error::new(
+        ErrorKind::AlreadyExists,
+        "Muitas pastas com o mesmo nome",
+    ))
 }
 
 fn is_available(path: &Path) -> io::Result<bool> {
@@ -164,7 +171,11 @@ fn is_available(path: &Path) -> io::Result<bool> {
 }
 
 /// Resolve copy collisions without silently replacing anything.
-pub fn unique_copy_path(parent: &Path, original_name: &OsStr, directory: bool) -> io::Result<PathBuf> {
+pub fn unique_copy_path(
+    parent: &Path,
+    original_name: &OsStr,
+    directory: bool,
+) -> io::Result<PathBuf> {
     let original = Path::new(original_name);
     let first = parent.join(original);
     if is_available(&first)? {
@@ -198,7 +209,10 @@ pub fn unique_copy_path(parent: &Path, original_name: &OsStr, directory: bool) -
             return Ok(target);
         }
     }
-    Err(io::Error::new(ErrorKind::AlreadyExists, "Muitas cópias do mesmo arquivo"))
+    Err(io::Error::new(
+        ErrorKind::AlreadyExists,
+        "Muitas cópias do mesmo arquivo",
+    ))
 }
 
 /// Copy a file or tree to an existing directory.
@@ -207,11 +221,17 @@ pub fn unique_copy_path(parent: &Path, original_name: &OsStr, directory: bool) -
 /// Every regular file is opened with create_new, preventing silent replacement.
 pub fn copy_into(source: &Path, destination_directory: &Path) -> io::Result<PathBuf> {
     if !destination_directory.is_dir() {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "O destino não é uma pasta"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "O destino não é uma pasta",
+        ));
     }
     let metadata = fs::symlink_metadata(source)?;
     if metadata.file_type().is_symlink() {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "Não copiamos links simbólicos"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Não copiamos links simbólicos",
+        ));
     }
     let name = source
         .file_name()
@@ -221,7 +241,10 @@ pub fn copy_into(source: &Path, destination_directory: &Path) -> io::Result<Path
         let canonical_source = fs::canonicalize(source)?;
         let canonical_destination = fs::canonicalize(destination_directory)?;
         if canonical_destination.starts_with(&canonical_source) {
-            return Err(io::Error::new(ErrorKind::InvalidInput, "Não copie uma pasta para dentro dela mesma"));
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Não copie uma pasta para dentro dela mesma",
+            ));
         }
 
         // Preflight, so unsupported links fail before writing anything.
@@ -229,7 +252,10 @@ pub fn copy_into(source: &Path, destination_directory: &Path) -> io::Result<Path
         for item in WalkDir::new(source).follow_links(false) {
             let item = item.map_err(io::Error::other)?;
             if item.file_type().is_symlink() {
-                return Err(io::Error::new(ErrorKind::InvalidInput, "A pasta contém links simbólicos"));
+                return Err(io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "A pasta contém links simbólicos",
+                ));
             }
             paths.push((item.path().to_path_buf(), item.file_type().is_dir()));
         }
@@ -255,7 +281,10 @@ pub fn copy_into(source: &Path, destination_directory: &Path) -> io::Result<Path
 
 fn copy_new_file(source: &Path, target: &Path) -> io::Result<()> {
     let mut reader = File::open(source)?;
-    let mut writer = OpenOptions::new().write(true).create_new(true).open(target)?;
+    let mut writer = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(target)?;
     io::copy(&mut reader, &mut writer)?;
     Ok(())
 }
@@ -291,8 +320,16 @@ mod tests {
         fs::write(dir.path().join(".secret"), "hidden").unwrap();
         fs::create_dir(dir.path().join("alpha")).unwrap();
         let entries = read_directory(dir.path(), false, SortBy::Name).unwrap();
-        assert_eq!(entries.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), vec!["alpha", "z.txt"]);
-        assert_eq!(read_directory(dir.path(), true, SortBy::Name).unwrap().len(), 3);
+        assert_eq!(
+            entries.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(),
+            vec!["alpha", "z.txt"]
+        );
+        assert_eq!(
+            read_directory(dir.path(), true, SortBy::Name)
+                .unwrap()
+                .len(),
+            3
+        );
     }
 
     #[test]
@@ -327,7 +364,10 @@ mod tests {
         fs::write(out.join("file.txt"), "existing").unwrap();
         let copied = copy_into(&source, &out).unwrap();
         assert_ne!(copied, out.join("file.txt"));
-        assert_eq!(fs::read_to_string(out.join("file.txt")).unwrap(), "existing");
+        assert_eq!(
+            fs::read_to_string(out.join("file.txt")).unwrap(),
+            "existing"
+        );
         assert_eq!(fs::read_to_string(copied).unwrap(), "new");
     }
 
@@ -337,7 +377,9 @@ mod tests {
         let source = root.path().join("file.txt");
         fs::write(&source, "test").unwrap();
         assert_eq!(
-            copy_into(&source, &root.path().join("missing")).unwrap_err().kind(),
+            copy_into(&source, &root.path().join("missing"))
+                .unwrap_err()
+                .kind(),
             ErrorKind::InvalidInput,
         );
     }
@@ -364,7 +406,10 @@ mod tests {
         let root = tempdir().unwrap();
         let sub = root.path().join("inner");
         fs::create_dir(&sub).unwrap();
-        assert_eq!(copy_into(root.path(), &sub).unwrap_err().kind(), ErrorKind::InvalidInput);
+        assert_eq!(
+            copy_into(root.path(), &sub).unwrap_err().kind(),
+            ErrorKind::InvalidInput
+        );
     }
 
     #[test]
@@ -377,6 +422,9 @@ mod tests {
         let out = root.path().join("out");
         fs::create_dir(&out).unwrap();
         let copied = copy_into(&source, &out).unwrap();
-        assert_eq!(fs::read(copied.join("nested/data.bin")).unwrap(), vec![1, 2, 3]);
+        assert_eq!(
+            fs::read(copied.join("nested/data.bin")).unwrap(),
+            vec![1, 2, 3]
+        );
     }
 }
