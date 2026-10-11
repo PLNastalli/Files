@@ -132,7 +132,7 @@ fn is_hidden(name: &str, metadata: &fs::Metadata) -> bool {
     {
         use std::os::windows::fs::MetadataExt;
         const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
-        return metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0;
+        metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0
     }
     #[cfg(not(windows))]
     {
