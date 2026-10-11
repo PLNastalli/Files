@@ -50,6 +50,16 @@ pub fn validate_name(name: &str) -> io::Result<()> {
     Ok(())
 }
 
+/// Create a plain-text document with a collision-safe default name.
+pub fn create_text_file(directory: &Path) -> io::Result<PathBuf> {
+    if !directory.is_dir() {
+        return Err(io::Error::new(ErrorKind::InvalidInput, "O destino não é uma pasta"));
+    }
+    let path = filesystem::unique_copy_path(directory, OsStr::new("Novo arquivo.txt"), false)?;
+    OpenOptions::new().write(true).create_new(true).open(&path)?;
+    Ok(path)
+}
+
 /// Rename a file/folder in place. Windows' rename fails if the destination exists.
 /// There is no implicit overwrite; on other platforms the preflight alone is not
 /// sufficient protection against a concurrent creator.
@@ -269,6 +279,17 @@ pub fn export_csv(directory: &Path, entries: &[FileEntry]) -> io::Result<PathBuf
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn new_text_files_never_overwrite_existing_content() {
+        let temp = tempdir().unwrap();
+        let original = temp.path().join("Novo arquivo.txt");
+        fs::write(&original, "keep me").unwrap();
+        let next = create_text_file(temp.path()).unwrap();
+        assert_ne!(next, original);
+        assert_eq!(fs::read_to_string(original).unwrap(), "keep me");
+        assert_eq!(fs::metadata(next).unwrap().len(), 0);
+    }
 
     #[test]
     fn refuses_reserved_and_traversal_names() {
