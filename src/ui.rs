@@ -453,13 +453,21 @@ impl FilesApp {
                     ))
                     .child(ribbon_group(
                         "Novo",
-                        div().flex().items_center().child(
-                            Button::new("home-new-folder")
-                                .ghost()
-                                .icon(IconName::FolderPlus)
-                                .label("Nova pasta")
-                                .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx))),
-                        ),
+                        div().flex().flex_col().gap_1()
+                            .child(
+                                Button::new("home-new-folder")
+                                    .ghost()
+                                    .icon(IconName::FolderPlus)
+                                    .label("Nova pasta")
+                                    .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx))),
+                            )
+                            .child(
+                                Button::new("home-new-file")
+                                    .ghost()
+                                    .icon(IconName::FilePlus)
+                                    .label("Arquivo de texto")
+                                    .on_click(cx.listener(|this, _, _, cx| this.create_text_file(cx))),
+                            ),
                     ))
                     .child(ribbon_group(
                         "Abrir",
