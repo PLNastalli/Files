@@ -115,7 +115,7 @@ impl FilesApp {
                 .flex()
                 .items_center()
                 .gap_2()
-                .rounded_t_md()
+                .rounded_md()
                 .border_1()
                 .border_color(rgb(if active { BORDER } else { WINDOW_BG }))
                 .bg(rgb(if active { CANVAS } else { WINDOW_BG }))
@@ -139,7 +139,7 @@ impl FilesApp {
                         })),
                 )
                 .child(
-                    Button::new(("close-folder-tab", index))
+                    Button::new(format!("close-folder-tab-{index}"))
                         .ghost()
                         .icon(IconName::X)
                         .disabled(self.tabs.len() <= 1)
