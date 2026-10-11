@@ -290,192 +290,291 @@ impl FilesApp {
         cx.notify();
     }
 
-    fn toolbar(&mut self, cx: &mut Context<Self>) -> Div {
-        let mut row = div()
-            .flex()
-            .items_center()
-            .gap_2()
-            .h(px(56.))
-            .px_4()
-            .border_b_1()
-            .border_color(rgb(BORDER))
-            .child(button("back", "‹").on_click(cx.listener(|this, _, _, cx| this.back(cx))))
-            .child(button("forward", "›").on_click(cx.listener(|this, _, _, cx| this.forward(cx))))
-            .child(button("up", "↑").on_click(cx.listener(|this, _, _, cx| this.up(cx))))
-            .child(button("refresh", "↻").on_click(cx.listener(|this, _, _, cx| this.reload(cx))))
-            .child(div().w(px(1.)).h_6().mx_1().bg(rgb(BORDER)))
-            .child(button("new-folder", "＋ Nova pasta").on_click(cx.listener(|this, _, _, cx| this.create_folder(cx))))
-            .child(button("copy", "Copiar").on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))))
-            .child(button("paste", "Colar").on_click(cx.listener(|this, _, _, cx| this.paste(cx))))
-            .child(button("sort", "Ordenar").on_click(cx.listener(|this, _, _, cx| {
-                this.sort = this.sort.next();
-                this.reload(cx);
-            })))
-            .child(button("hidden", "Ocultos").on_click(cx.listener(|this, _, _, cx| {
-                this.show_hidden = !this.show_hidden;
-                this.reload(cx);
-            })));
-        if self.confirm_trash {
-            row = row
-                .child(button("trash-yes", "Confirmar Lixeira").on_click(cx.listener(|this, _, _, cx| this.confirm_trash(cx))))
-                .child(button("trash-no", "Cancelar").on_click(cx.listener(|this, _, _, cx| {
-                    this.confirm_trash = false;
-                    cx.notify();
-                })));
-        } else {
-            row = row.child(button("trash", "Lixeira").on_click(cx.listener(|this, _, _, cx| this.request_trash(cx))));
-        }
-        row
-    }
 
-    fn sidebar(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
-        let items = self
-            .shortcuts
-            .clone()
-            .into_iter()
-            .enumerate()
-            .map(|(index, (label, path))| {
-                let current = self.directory == path;
-                div()
-                    .id(("shortcut", index))
-                    .h(px(36.))
-                    .px_3()
-                    .mb_1()
-                    .rounded_md()
-                    .flex()
-                    .items_center()
-                    .text_sm()
-                    .text_color(if current { rgb(TEXT) } else { rgb(MUTED) })
-                    .bg(if current { rgb(SELECTED) } else { rgb(SIDEBAR) })
-                    .cursor_pointer()
-                    .hover(|element| element.bg(rgb(HOVER)))
-                    .child(format!("▣   {label}"))
-                    .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
-            });
+    // GPUI Kit Toolbar: semantic keyboard navigation and consistently styled controls.
+    fn toolbar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let mut bar = Toolbar::new("files-commands")
+            .child(Button::new("new-directory")
+                .icon(IconName::FolderPlus)
+                .label("Nova pasta")
+                .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx))))
+            .content(div().w(px(1.)).h(px(22.)).bg(cx.theme().border))
+            .child(Button::new("copy")
+                .icon(IconName::Copy)
+                .label("Copiar")
+                .disabled(self.selected.is_none())
+                .on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))))
+            .child(Button::new("paste")
+                .icon(IconName::ClipboardPaste)
+                .label("Colar")
+                .disabled(self.copied.is_none())
+                .on_click(cx.listener(|this, _, _, cx| this.paste(cx))))
+            .child(Button::new("trash")
+                .icon(IconName::Trash2)
+                .label("Lixeira")
+                .disabled(self.selected.is_none())
+                .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx))))
+            .content(div().w(px(1.)).h(px(22.)).bg(cx.theme().border))
+            .child(Button::new("sort")
+                .icon(IconName::ArrowDownAZ)
+                .label("Ordenar")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.sort = this.sort.next();
+                    this.reload(cx);
+                })))
+            .child(Button::new("hidden")
+                .icon(IconName::Eye)
+                .label("Ocultos")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.show_hidden = !this.show_hidden;
+                    this.reload(cx);
+                })))
+            .content(div().flex_1())
+            .content(
+                div().text_xs().text_color(cx.theme().muted_foreground)
+                    .child(format!("Por {}", self.sort.label())),
+            );
+
+        if self.confirm_trash {
+            bar = bar
+                .child(Button::new("confirm-trash").icon(IconName::Check).label("Confirmar")
+                    .on_click(cx.listener(|this, _, _, cx| this.confirm_trash(cx))))
+                .child(Button::new("cancel-trash").icon(IconName::X).label("Cancelar")
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.confirm_trash = false;
+                        cx.notify();
+                    })));
+        }
 
         div()
-            .id("sidebar-scroll")
-            .w(px(220.))
-            .flex_shrink_0()
-            .h_full()
-            .border_r_1()
-            .border_color(rgb(BORDER))
-            .bg(rgb(SIDEBAR))
-            .p_3()
-            .overflow_y_scroll()
-            .child(div().text_xs().text_color(rgb(MUTED)).px_3().pt_3().pb_3().child("ACESSO RÁPIDO"))
-            .children(items)
+            .h(px(54.))
+            .px_5()
+            .flex()
+            .items_center()
+            .border_b_1()
+            .border_color(cx.theme().border)
+            .bg(cx.theme().background)
+            .child(bar)
     }
 
-    fn breadcrumbs(&mut self, cx: &mut Context<Self>) -> Div {
-        let mut segments = self
-            .directory
-            .ancestors()
-            .filter(|path| !path.as_os_str().is_empty())
+    // The navigation area uses the real GPUI Kit sidebar, not hand-painted rows.
+    fn sidebar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let locations = self.shortcuts.clone().into_iter().map(|(label, path)| {
+            let active = self.directory == path;
+            let icon = match label.as_str() {
+                "Início" => IconName::House,
+                "Área de Trabalho" => IconName::Monitor,
+                "Documentos" => IconName::FileText,
+                "Downloads" => IconName::Download,
+                "Imagens" => IconName::Image,
+                "Vídeos" => IconName::Clapperboard,
+                "Músicas" => IconName::Music,
+                text if text.starts_with("Disco") => IconName::HardDrive,
+                _ => IconName::Folder,
+            };
+            SidebarMenuItem::new(label)
+                .icon(icon)
+                .active(active)
+                .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+        });
+
+        Sidebar::new()
+            .width(248)
+            .header(
+                SidebarHeader::new()
+                    .child(
+                        div().flex().items_center().gap_3().px_2()
+                            .child(Icon::new(IconName::FolderOpen).text_color(cx.theme().primary))
+                            .child(
+                                div().flex().flex_col().gap_1()
+                                    .child(div().font_weight(gpui_kit::FontWeight::SEMIBOLD).child("Biblioteca"))
+                                    .child(div().text_xs().text_color(cx.theme().muted_foreground).child("Arquivos locais")),
+                            ),
+                    ),
+            )
+            .child(
+                SidebarGroup::new("Acesso rápido")
+                    .child(SidebarMenu::new().children(locations)),
+            )
+            .footer(
+                SidebarFooter::new()
+                    .child(
+                        div().flex().items_center().gap_2()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(Icon::new(IconName::HardDrive).small())
+                            .child("Armazenamento local"),
+                    ),
+            )
+    }
+
+    // Explorer-style navigation and real editable search input.
+    fn navigation(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let mut segments = self.directory.ancestors()
+            .filter(|part| !part.as_os_str().is_empty())
             .map(Path::to_path_buf)
             .collect::<Vec<_>>();
         segments.reverse();
-
         let crumbs = segments.into_iter().enumerate().map(|(index, path)| {
-            let text = path
-                .file_name()
-                .map(|s| s.to_string_lossy().into_owned())
+            let label = path.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_else(|| path.display().to_string());
             div()
                 .flex()
                 .items_center()
-                .gap_2()
-                .child(div().text_color(rgb(MUTED)).child(if index == 0 { "⌂" } else { "›" }))
+                .gap_1()
+                .child(Icon::new(IconName::ChevronRight).xsmall()
+                    .text_color(cx.theme().muted_foreground))
                 .child(
                     div()
-                        .id(("crumb", index))
+                        .id(("breadcrumb", index))
+                        .px_2().py_1().rounded_md()
+                        .text_sm()
                         .cursor_pointer()
-                        .px_2()
-                        .py_1()
-                        .rounded_sm()
-                        .hover(|element| element.bg(rgb(HOVER)))
-                        .child(text)
+                        .hover(|style| style.bg(cx.theme().accent))
+                        .child(label)
                         .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx))),
                 )
         });
 
         div()
-            .h(px(52.))
+            .h(px(64.))
             .px_5()
             .flex()
             .items_center()
-            .gap_2()
+            .gap_3()
             .border_b_1()
-            .border_color(rgb(BORDER))
-            .text_sm()
-            .text_color(rgb(TEXT))
-            .children(crumbs)
+            .border_color(cx.theme().border)
+            .child(
+                div().flex().items_center().gap_1()
+                    .child(Button::new("nav-back").ghost().icon(IconName::ArrowLeft)
+                        .tooltip("Voltar (Alt+Esquerda)")
+                        .disabled(self.history_index == 0)
+                        .on_click(cx.listener(|this, _, _, cx| this.back(cx))))
+                    .child(Button::new("nav-forward").ghost().icon(IconName::ArrowRight)
+                        .tooltip("Avançar (Alt+Direita)")
+                        .disabled(self.history_index + 1 == self.history.len())
+                        .on_click(cx.listener(|this, _, _, cx| this.forward(cx))))
+                    .child(Button::new("nav-up").ghost().icon(IconName::ArrowUp)
+                        .tooltip("Pasta acima")
+                        .on_click(cx.listener(|this, _, _, cx| this.up(cx))))
+                    .child(Button::new("nav-reload").ghost().icon(IconName::RefreshCw)
+                        .tooltip("Atualizar (F5)")
+                        .on_click(cx.listener(|this, _, _, cx| this.reload(cx)))),
+            )
+            .child(
+                div().flex_1().min_w_0().h(px(36.)).px_2()
+                    .flex().items_center().gap_1()
+                    .rounded_md().border_1()
+                    .border_color(cx.theme().border)
+                    .bg(cx.theme().secondary)
+                    .children(crumbs),
+            )
+            .child(
+                div().w(px(250.)).flex_shrink_0()
+                    .child(
+                        Input::new(&self.search)
+                            .prefix(Icon::new(IconName::Search).small())
+                            .cleanable(true),
+                    ),
+            )
     }
 
-    fn file_list(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
-        let rows = self.entries.clone().into_iter().enumerate().map(|(index, entry)| {
-            let is_selected = self.selected.as_ref() == Some(&entry.path);
-            let icon = match entry.kind {
-                EntryKind::Folder => "▣",
-                EntryKind::File => "▤",
-                EntryKind::Symlink => "↗",
-            };
-            let size_label = if entry.kind == EntryKind::Folder {
-                "—".to_owned()
-            } else {
-                filesystem::display_size(entry.size)
-            };
-            let path = entry.path.clone();
-            div()
-                .id(("entry", index))
-                .h(px(40.))
-                .mx_3()
-                .px_3()
-                .rounded_sm()
-                .flex()
-                .items_center()
-                .text_sm()
-                .cursor_pointer()
-                .bg(if is_selected { rgb(SELECTED) } else { rgb(BG) })
-                .hover(|element| element.bg(rgb(HOVER)))
-                .child(div().w(px(30.)).text_color(rgb(if entry.kind == EntryKind::Folder { ACCENT } else { MUTED })).child(icon))
-                .child(div().flex_1().min_w_0().text_color(rgb(TEXT)).child(entry.name.clone()))
-                .child(div().w(px(136.)).text_color(rgb(MUTED)).child(entry.kind_label()))
-                .child(div().w(px(92.)).text_color(rgb(MUTED)).child(size_label))
-                .on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
-                    if matches!(event, ClickEvent::Mouse(click) if click.up.click_count >= 2) {
-                        this.open_entry(path.clone(), cx);
-                    } else {
-                        this.selected = Some(path.clone());
-                        this.confirm_trash = false;
-                        cx.notify();
-                    }
-                }))
-        });
-
-        div()
-            .id("file-list-scroll")
+    fn file_list(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let query = self.search.read(cx).value().to_string().to_lowercase();
+        let visible: Vec<FileEntry> = self.entries.iter()
+            .filter(|entry| query.is_empty() || entry.name.to_lowercase().contains(&query))
+            .cloned()
+            .collect();
+        let mut list = div()
+            .id("file-scroller")
             .flex_1()
             .min_h_0()
             .overflow_y_scroll()
-            .bg(rgb(BG))
+            .bg(cx.theme().background);
+
+        if visible.is_empty() {
+            let message = if query.is_empty() {
+                "Esta pasta está vazia"
+            } else {
+                "Nenhum resultado encontrado"
+            };
+            list = list.child(
+                div().flex_1().h_full().flex().items_center().justify_center()
+                    .child(
+                        Empty::new().header(
+                            EmptyHeader::new()
+                                .media(EmptyMedia::new()
+                                    .with_variant(EmptyMediaVariant::Icon)
+                                    .child(Icon::new(IconName::FolderOpen)))
+                                .title(EmptyTitle::new().child(message))
+                                .description(EmptyDescription::new().child(
+                                    if query.is_empty() { "Adicione arquivos ou crie uma pasta." }
+                                    else { "Tente pesquisar outro nome de arquivo." }
+                                )),
+                        ),
+                    ),
+            );
+        } else {
+            for (index, entry) in visible.into_iter().enumerate() {
+                let selected = self.selected.as_ref() == Some(&entry.path);
+                let folder = entry.kind == EntryKind::Folder;
+                let symbol = if folder { IconName::Folder } else if entry.kind == EntryKind::Symlink {
+                    IconName::Link
+                } else { IconName::File };
+                let size = if folder {
+                    "—".to_owned()
+                } else {
+                    filesystem::display_size(entry.size)
+                };
+                let path = entry.path.clone();
+                list = list.child(
+                    div()
+                        .id(("file-row", index))
+                        .mx_3().my_0p5().px_4().h(px(43.))
+                        .flex().items_center().gap_3()
+                        .rounded_md().cursor_pointer()
+                        .text_sm()
+                        .bg(if selected { cx.theme().accent } else { cx.theme().background })
+                        .hover(|style| style.bg(cx.theme().accent))
+                        .child(
+                            Icon::new(symbol)
+                                .text_color(if folder { cx.theme().primary } else { cx.theme().muted_foreground }),
+                        )
+                        .child(div().flex_1().min_w_0().child(entry.name.clone()))
+                        .child(div().w(px(155.)).flex_shrink_0().text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(entry.kind_label()))
+                        .child(div().w(px(90.)).flex_shrink_0().text_right().text_xs()
+                            .text_color(cx.theme().muted_foreground).child(size))
+                        .on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
+                            if matches!(event, ClickEvent::Mouse(click) if click.up.click_count >= 2) {
+                                this.open_entry(path.clone(), cx);
+                            } else {
+                                this.selected = Some(path.clone());
+                                this.confirm_trash = false;
+                                cx.notify();
+                            }
+                        })),
+                );
+            }
+        }
+
+        div().flex_1().min_h_0().flex().flex_col()
             .child(
-                div()
-                    .h(px(38.))
-                    .px_6()
-                    .flex()
-                    .items_center()
-                    .text_xs()
-                    .text_color(rgb(MUTED))
-                    .border_b_1()
-                    .border_color(rgb(BORDER))
+                div().h(px(38.)).px_7()
+                    .flex().items_center()
+                    .text_xs().font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(cx.theme().muted_foreground)
+                    .border_b_1().border_color(cx.theme().border)
                     .child(div().flex_1().child("Nome"))
-                    .child(div().w(px(136.)).child("Tipo"))
-                    .child(div().w(px(92.)).child("Tamanho")),
+                    .child(div().w(px(155.)).child("Tipo"))
+                    .child(div().w(px(90.)).text_right().child("Tamanho")),
             )
-            .children(rows)
+            .child(list)
     }
 }
+
 
 impl Render for FilesApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -499,96 +598,84 @@ impl Render for FilesApp {
                 this.show_hidden = !this.show_hidden;
                 this.reload(cx);
             }))
-            .size_full()
-            .flex()
-            .flex_col()
-            .bg(rgb(BG))
-            .text_color(rgb(TEXT))
+            .size_full().flex().flex_col()
+            .bg(cx.theme().background)
+            .text_color(cx.theme().foreground)
             .child(
-                div()
-                    .h(px(43.))
-                    .px_5()
-                    .flex()
-                    .items_center()
-                    .bg(rgb(PANEL))
-                    .border_b_1()
-                    .border_color(rgb(BORDER))
-                    .child(div().text_color(rgb(ACCENT)).font_weight(gpui::FontWeight::BOLD).child("▣  Files"))
-                    .child(div().ml_4().text_xs().text_color(rgb(MUTED)).child("Rust · GPUI")),
+                TitleBar::new()
+                    .child(
+                        div().flex().items_center().gap_3().pl_3()
+                            .child(Icon::new(IconName::FolderOpen).text_color(cx.theme().primary))
+                            .child(div().font_weight(gpui_kit::FontWeight::SEMIBOLD).child("Files"))
+                            .child(div().text_xs().text_color(cx.theme().muted_foreground).child("Gerenciador de arquivos")),
+                    ),
             )
+            .child(self.navigation(cx))
             .child(self.toolbar(cx))
             .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
+                div().flex_1().min_h_0().flex()
                     .child(self.sidebar(cx))
                     .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .flex()
-                            .flex_col()
-                            .child(self.breadcrumbs(cx))
+                        div().flex_1().min_w_0().flex().flex_col()
                             .child(
-                                div()
-                                    .h(px(40.))
-                                    .px_6()
-                                    .flex()
-                                    .items_center()
-                                    .bg(rgb(PANEL))
-                                    .text_sm()
-                                    .text_color(rgb(MUTED))
-                                    .child(format!("Ordenação: {}  ·  Ocultos: {}", self.sort.label(), if self.show_hidden { "sim" } else { "não" })),
+                                div().px_6().h(px(56.)).flex().items_center().justify_between()
+                                    .child(
+                                        div().flex().flex_col().gap_1()
+                                            .child(
+                                                div().text_base().font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                                    .child(self.directory.file_name()
+                                                        .map(|s| s.to_string_lossy().into_owned())
+                                                        .unwrap_or_else(|| self.directory.display().to_string())),
+                                            )
+                                            .child(div().text_xs().text_color(cx.theme().muted_foreground)
+                                                .child(format!("{} itens nesta pasta", self.entries.len()))),
+                                    )
+                                    .child(div().text_xs().text_color(cx.theme().muted_foreground)
+                                        .child(format!("Ordenar: {}", self.sort.label()))),
                             )
                             .child(self.file_list(cx)),
                     ),
             )
             .child(
-                div()
-                    .h(px(32.))
-                    .px_4()
-                    .flex()
-                    .items_center()
-                    .border_t_1()
-                    .border_color(rgb(BORDER))
-                    .bg(rgb(PANEL))
-                    .text_xs()
-                    .text_color(rgb(MUTED))
-                    .child(self.status.clone())
-                    .child(div().flex_1())
-                    .child(if self.selected.is_some() { "1 selecionado" } else { "Nenhum selecionado" }),
+                StatusBar::new()
+                    .left(self.status.clone())
+                    .right(
+                        if self.selected.is_some() { "1 item selecionado" } else { "Nenhum item selecionado" }
+                    ),
             )
     }
 }
 
 fn main() {
-    gpui_platform::application().run(|cx: &mut App| {
-        cx.bind_keys([
-            KeyBinding::new("alt-left", Back, None),
-            KeyBinding::new("alt-right", Forward, None),
-            KeyBinding::new("alt-up", Up, None),
-            KeyBinding::new("f5", Refresh, None),
-            KeyBinding::new("ctrl-shift-n", NewFolder, None),
-            KeyBinding::new("ctrl-c", Copy, None),
-            KeyBinding::new("ctrl-v", Paste, None),
-            KeyBinding::new("delete", Delete, None),
-            KeyBinding::new("enter", OpenSelected, None),
-            KeyBinding::new("ctrl-h", ToggleHidden, None),
-        ]);
+    gpui_kit::application()
+        .with_assets(gpui_kit::assets::AllAssets)
+        .run(|cx: &mut App| {
+            gpui_kit::init(cx);
+            Theme::change(ThemeMode::Dark, None, cx);
 
-        let bounds = Bounds::centered(None, size(px(1120.), px(740.)), cx);
-        if let Err(error) = cx.open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(bounds)),
-                ..Default::default()
-            },
-            |window, cx| cx.new(|cx| FilesApp::new(window, cx)),
-        ) {
-            eprintln!("Não foi possível abrir a janela: {error}");
-            cx.quit();
-        } else {
+            cx.bind_keys([
+                KeyBinding::new("alt-left", Back, None),
+                KeyBinding::new("alt-right", Forward, None),
+                KeyBinding::new("alt-up", Up, None),
+                KeyBinding::new("f5", Refresh, None),
+                KeyBinding::new("ctrl-shift-n", NewFolder, None),
+                KeyBinding::new("ctrl-c", Copy, None),
+                KeyBinding::new("ctrl-v", Paste, None),
+                KeyBinding::new("delete", Delete, None),
+                KeyBinding::new("enter", OpenSelected, None),
+                KeyBinding::new("ctrl-h", ToggleHidden, None),
+            ]);
+
+            let bounds = Bounds::centered(None, size(px(1200.), px(760.)), cx);
+            gpui_kit::open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(bounds)),
+                    ..TitleBar::window_options()
+                },
+                cx,
+                |window, cx| cx.new(|cx| FilesApp::new(window, cx)),
+            )
+            .expect("Não foi possível abrir a janela");
             cx.activate(true);
-        }
-    });
+        });
 }
