@@ -103,17 +103,18 @@ impl FilesApp {
             .or_else(|| std::env::current_dir().ok())
             .unwrap_or_else(|| PathBuf::from("C:\\"));
         let mut shortcuts = vec![("Início".to_string(), home.clone())];
-        for (label, folder) in [
-            ("Área de Trabalho", "Desktop"),
-            ("Documentos", "Documents"),
-            ("Downloads", "Downloads"),
-            ("Imagens", "Pictures"),
-            ("Vídeos", "Videos"),
-            ("Músicas", "Music"),
+        for (label, path) in [
+            ("Área de Trabalho", dirs::desktop_dir()),
+            ("Documentos", dirs::document_dir()),
+            ("Downloads", dirs::download_dir()),
+            ("Imagens", dirs::picture_dir()),
+            ("Vídeos", dirs::video_dir()),
+            ("Músicas", dirs::audio_dir()),
         ] {
-            let path = home.join(folder);
-            if path.is_dir() {
-                shortcuts.push((label.to_string(), path));
+            if let Some(path) = path.filter(|path| path.is_dir())
+                && !shortcuts.iter().any(|(_, existing)| existing == &path)
+            {
+                shortcuts.push((label.to_owned(), path));
             }
         }
         let pinned = shortcuts::config_path()
@@ -379,9 +380,18 @@ impl FilesApp {
         // Preserve built-in home, known folders and drive entries.
         let home = dirs::home_dir().unwrap_or_default();
         let is_default = path == home
-            || ["Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music"]
-                .iter().any(|name| path == home.join(name))
-            || path.parent().is_none_or(|parent| parent == path);
+            || [
+                dirs::desktop_dir(),
+                dirs::document_dir(),
+                dirs::download_dir(),
+                dirs::picture_dir(),
+                dirs::video_dir(),
+                dirs::audio_dir(),
+            ]
+            .into_iter()
+            .flatten()
+            .any(|folder| folder == path)
+            || path.parent().is_none();
         if !is_default {
             self.shortcuts.retain(|(_, entry)| entry != path);
         }
