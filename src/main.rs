@@ -198,6 +198,7 @@ impl FilesApp {
     }
 
     fn reload(&mut self, cx: &mut Context<Self>) {
+        let previous_selection = self.selected.clone();
         match filesystem::read_directory(&self.directory, self.show_hidden, self.sort) {
             Ok(entries) => {
                 self.selected_paths
@@ -212,6 +213,9 @@ impl FilesApp {
                 self.selected = None;
                 self.status = format!("Erro ao abrir pasta: {error}");
             }
+        }
+        if self.preview_open && self.selected != previous_selection {
+            self.refresh_preview(cx);
         }
         cx.notify();
     }
@@ -583,6 +587,7 @@ impl FilesApp {
             Ok(path) => {
                 self.reload(cx);
                 self.set_selection(path);
+                self.refresh_preview(cx);
                 self.status = "Pasta criada".to_owned();
                 cx.notify();
             }
@@ -595,6 +600,7 @@ impl FilesApp {
             Ok(path) => {
                 self.reload(cx);
                 self.set_selection(path);
+                self.refresh_preview(cx);
                 self.status = "Novo arquivo de texto criado".to_owned();
                 cx.notify();
             }
@@ -660,6 +666,7 @@ impl FilesApp {
                 self.reload(cx);
                 self.selected = paths.last().cloned();
                 self.selected_paths = paths;
+                self.refresh_preview(cx);
                 self.status = format!("{count} item(ns) renomeado(s)");
                 cx.notify();
             }
@@ -735,6 +742,7 @@ impl FilesApp {
                         if this.directory == destination {
                             this.reload(cx);
                             this.set_selection(path);
+                            this.refresh_preview(cx);
                         }
                         this.status = if cut {
                             "Movimentação concluída"
