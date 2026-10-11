@@ -405,7 +405,7 @@ impl FilesApp {
                 .child(div().pt_5().flex().justify_center()
                     .child(Icon::new(icon).text_color(cx.theme().primary).large()))
                 .child(div().text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
-                    .text_color(rgb(TEXT)).child(entry.name))
+                    .text_color(rgb(TEXT)).child(entry.name.clone()))
                 .child(div().text_xs().text_color(rgb(SECONDARY))
                     .child(format!("Tipo: {}", entry.kind_label())))
                 .child(div().text_xs().text_color(rgb(SECONDARY))
