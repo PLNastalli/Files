@@ -13,7 +13,7 @@ use gpui_kit::component::{
     status_bar::StatusBar,
     tab::{Tab, TabBar},
 };
-use gpui_kit::{ClickEvent, Div, Render, div, prelude::*, rgb};
+use gpui_kit::{ClickEvent, Div, Render, Stateful, div, prelude::*, rgb};
 use std::path::Path;
 
 // Win11System is the reference application's default. These are approximations
@@ -590,7 +590,7 @@ impl FilesApp {
 
     // The reference app has a file-tree pane, not a dashboard-style sidebar.
     // Ancestors and immediate child folders form the visible navigation hierarchy.
-    fn navigation_tree(&mut self, cx: &mut Context<Self>) -> Div {
+    fn navigation_tree(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let quick_access = self
             .shortcuts
             .clone()
@@ -937,7 +937,7 @@ impl FilesApp {
                                 this.child(div().w(px(32.)).text_xs().text_color(rgb(SECONDARY)).child((index + 1).to_string()))
                             })
                             .child(Icon::new(symbol)
-                                .text_color(if folder { rgb(0xD69E42) } else { cx.theme().muted_foreground }))
+                                .text_color(rgb(if folder { 0xD69E42 } else { SECONDARY })))
                             .child(div().flex_1().min_w_0().child(entry.name.clone()))
                             .child(div().w(px(125.)).text_xs().text_color(rgb(SECONDARY))
                                 .child(file_type_name(&entry)))
