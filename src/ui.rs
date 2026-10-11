@@ -10,6 +10,7 @@ use gpui_kit::component::{
     button::{Button, ButtonVariants as _},
     empty::{Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle},
     input::Input,
+    menu::{ContextMenuExt as _, PopupMenu, PopupMenuItem},
     status_bar::StatusBar,
 };
 use gpui_kit::{ClickEvent, Div, Render, Stateful, div, prelude::*, rgb};
@@ -97,6 +98,82 @@ fn ribbon_group(label: &'static str, content: impl IntoElement) -> Div {
                 .text_color(rgb(SECONDARY))
                 .child(label),
         )
+}
+
+/// Menu items hold the target path so a right-click cannot operate on a
+/// different file that happened to be selected previously.
+fn file_context_menu(
+    menu: PopupMenu,
+    window: &mut Window,
+    view: &Entity<FilesApp>,
+    path: std::path::PathBuf,
+    is_folder: bool,
+    is_pinned: bool,
+) -> PopupMenu {
+    let target = path.clone();
+    let mut menu = menu.min_w(px(235.))
+        .item(PopupMenuItem::new("Abrir").icon(IconName::FolderOpen)
+            .on_click(window.listener_for(view, move |this, _, _, cx| {
+                this.open_entry(target.clone(), cx);
+            })));
+    if is_folder {
+        let target = path.clone();
+        menu = menu.item(PopupMenuItem::new("Abrir em nova aba").icon(IconName::Files)
+            .on_click(window.listener_for(view, move |this, _, _, cx| {
+                this.open_in_new_tab(target.clone(), cx);
+            })));
+        let target = path.clone();
+        if is_pinned {
+            menu = menu.item(PopupMenuItem::new("Desafixar do Acesso rápido").icon(IconName::PinOff)
+                .on_click(window.listener_for(view, move |this, _, _, cx| {
+                    this.unpin_folder(&target, cx);
+                })));
+        } else {
+            menu = menu.item(PopupMenuItem::new("Fixar no Acesso rápido").icon(IconName::Pin)
+                .on_click(window.listener_for(view, move |this, _, _, cx| {
+                    this.pin_folder(target.clone(), cx);
+                })));
+        }
+    }
+    let copy_target = path.clone();
+    let cut_target = path.clone();
+    let rename_target = path.clone();
+    let delete_target = path.clone();
+    let properties_target = path.clone();
+    let clipboard_target = path.clone();
+    menu.separator()
+        .item(PopupMenuItem::new("Copiar").icon(IconName::Copy)
+            .on_click(window.listener_for(view, move |this, _, _, cx| {
+                this.ensure_context_selection(&copy_target);
+                this.copy_selected(cx);
+            })))
+        .item(PopupMenuItem::new("Recortar").icon(IconName::Scissors)
+            .on_click(window.listener_for(view, move |this, _, _, cx| {
+                this.ensure_context_selection(&cut_target);
+                this.cut_selected(cx);
+            })))
+        .item(PopupMenuItem::new("Copiar caminho").icon(IconName::ClipboardCopy)
+            .on_click(move |_, _, cx| {
+                cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(
+                    clipboard_target.to_string_lossy().into_owned(),
+                ));
+            }))
+        .separator()
+        .item(PopupMenuItem::new("Renomear").icon(IconName::FilePen)
+            .on_click(window.listener_for(view, move |this, _, window, cx| {
+                this.ensure_context_selection(&rename_target);
+                this.begin_rename(window, cx);
+            })))
+        .item(PopupMenuItem::new("Enviar para Lixeira").icon(IconName::Trash)
+            .on_click(window.listener_for(view, move |this, _, _, cx| {
+                this.ensure_context_selection(&delete_target);
+                this.request_trash(cx);
+            })))
+        .separator()
+        .item(PopupMenuItem::new("Propriedades").icon(IconName::Info)
+            .on_click(window.listener_for(view, move |this, _, _, cx| {
+                this.show_properties(properties_target.clone(), cx);
+            })))
 }
 
 impl FilesApp {
