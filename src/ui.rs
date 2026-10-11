@@ -237,12 +237,16 @@ impl FilesApp {
                 .border_b_1()
                 .border_color(rgb(BORDER))
                 .bg(rgb(TOOLBAR_BG))
-                .child(div().text_sm().child("Novo nome:"))
+                .child(div().text_sm().child(if self.selected_paths.len() > 1 {
+                    "Prefixo do lote (001, 002...):"
+                } else {
+                    "Novo nome:"
+                }))
                 .child(div().w(px(360.)).child(Input::new(&self.rename_input)))
                 .child(
                     Button::new("rename-save")
                         .icon(IconName::Check)
-                        .label("Salvar")
+                        .label(if self.selected_paths.len() > 1 { "Renomear lote" } else { "Salvar" })
                         .on_click(cx.listener(|this, _, _, cx| this.confirm_rename(cx))),
                 )
                 .child(
@@ -466,7 +470,7 @@ impl FilesApp {
             );
         } else {
             for (index, entry) in visible.into_iter().enumerate() {
-                let selected = self.selected.as_ref() == Some(&entry.path);
+                let selected = self.selected_paths.contains(&entry.path);
                 let folder = entry.kind == EntryKind::Folder;
                 let symbol = match entry.kind {
                     EntryKind::Folder => IconName::Folder,
@@ -506,9 +510,8 @@ impl FilesApp {
                                 if matches!(event, ClickEvent::Mouse(click) if click.up.click_count >= 2) {
                                     this.open_entry(path.clone(), cx);
                                 } else {
-                                    this.selected = Some(path.clone());
-                                    this.confirm_trash = false;
-                                    cx.notify();
+                                    let additive = matches!(event, ClickEvent::Mouse(click) if click.up.modifiers.control);
+                                    this.select_entry(path.clone(), additive, cx);
                                 }
                             })),
                     );
@@ -539,9 +542,8 @@ impl FilesApp {
                                 if matches!(event, ClickEvent::Mouse(click) if click.up.click_count >= 2) {
                                     this.open_entry(path.clone(), cx);
                                 } else {
-                                    this.selected = Some(path.clone());
-                                    this.confirm_trash = false;
-                                    cx.notify();
+                                    let additive = matches!(event, ClickEvent::Mouse(click) if click.up.modifiers.control);
+                                    this.select_entry(path.clone(), additive, cx);
                                 }
                             })),
                     );
@@ -762,10 +764,10 @@ impl Render for FilesApp {
                 div()
                     .bg(rgb(WINDOW_BG))
                     .child(StatusBar::new().left(self.status.clone()).right(
-                        if self.selected.is_some() {
-                            "1 item selecionado"
+                        if self.selected_paths.is_empty() {
+                            "Nenhum item selecionado".to_owned()
                         } else {
-                            "Nenhum item selecionado"
+                            format!("{} item(ns) selecionado(s)", self.selected_paths.len())
                         },
                     )),
             )
