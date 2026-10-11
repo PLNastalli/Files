@@ -341,7 +341,11 @@ impl FilesApp {
     }
 
     fn select_all(&mut self, cx: &mut Context<Self>) {
-        self.selected_paths = self.entries.iter().map(|entry| entry.path.clone()).collect();
+        self.selected_paths = self
+            .entries
+            .iter()
+            .map(|entry| entry.path.clone())
+            .collect();
         self.selected = self.selected_paths.last().cloned();
         cx.notify();
     }

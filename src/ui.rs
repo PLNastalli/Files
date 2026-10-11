@@ -55,8 +55,14 @@ fn file_type_name(entry: &FileEntry) -> String {
     match entry.kind {
         EntryKind::Folder => "Pasta de arquivos".to_owned(),
         EntryKind::Symlink => "Atalho / link".to_owned(),
-        EntryKind::File => match entry.path.extension().and_then(|extension| extension.to_str()) {
-            Some(extension) if !extension.is_empty() => format!("Arquivo {}", extension.to_ascii_uppercase()),
+        EntryKind::File => match entry
+            .path
+            .extension()
+            .and_then(|extension| extension.to_str())
+        {
+            Some(extension) if !extension.is_empty() => {
+                format!("Arquivo {}", extension.to_ascii_uppercase())
+            }
             _ => "Arquivo".to_owned(),
         },
     }
@@ -65,12 +71,33 @@ fn file_type_name(entry: &FileEntry) -> String {
 /// Thin Ribbon group: command area above, small caption along the lower edge,
 /// separated from neighbouring groups like the DevExpress Office ribbon.
 fn ribbon_group(label: &'static str, content: impl IntoElement) -> Div {
-    div().h_full().px_3().pt_2()
-        .border_r_1().border_color(rgb(BORDER))
-        .flex().flex_col().justify_between()
-        .child(div().flex_1().flex().items_center().justify_center().child(content))
-        .child(div().h(px(21.)).flex().items_center().justify_center()
-            .text_xs().text_color(rgb(SECONDARY)).child(label))
+    div()
+        .h_full()
+        .px_3()
+        .pt_2()
+        .border_r_1()
+        .border_color(rgb(BORDER))
+        .flex()
+        .flex_col()
+        .justify_between()
+        .child(
+            div()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(content),
+        )
+        .child(
+            div()
+                .h(px(21.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_xs()
+                .text_color(rgb(SECONDARY))
+                .child(label),
+        )
 }
 
 impl FilesApp {
@@ -137,165 +164,385 @@ impl FilesApp {
             .border_b_1()
             .border_color(rgb(BORDER))
             .child(
-                div().id("ribbon-home").h_full().px_5()
-                    .flex().items_center().cursor_pointer()
-                    .text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
-                    .text_color(rgb(if self.ribbon_page == RibbonPage::Home { 0x0067C0 } else { TEXT }))
-                    .border_b_2().border_color(rgb(if self.ribbon_page == RibbonPage::Home { 0x0078D4 } else { CANVAS }))
+                div()
+                    .id("ribbon-home")
+                    .h_full()
+                    .px_5()
+                    .flex()
+                    .items_center()
+                    .cursor_pointer()
+                    .text_sm()
+                    .font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(rgb(if self.ribbon_page == RibbonPage::Home {
+                        0x0067C0
+                    } else {
+                        TEXT
+                    }))
+                    .border_b_2()
+                    .border_color(rgb(if self.ribbon_page == RibbonPage::Home {
+                        0x0078D4
+                    } else {
+                        CANVAS
+                    }))
                     .child("Início")
                     .on_click(cx.listener(|this, _, _, cx| this.show_ribbon(RibbonPage::Home, cx))),
             )
             .child(
-                div().id("ribbon-view").h_full().px_5()
-                    .flex().items_center().cursor_pointer()
-                    .text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
-                    .text_color(rgb(if self.ribbon_page == RibbonPage::View { 0x0067C0 } else { TEXT }))
-                    .border_b_2().border_color(rgb(if self.ribbon_page == RibbonPage::View { 0x0078D4 } else { CANVAS }))
+                div()
+                    .id("ribbon-view")
+                    .h_full()
+                    .px_5()
+                    .flex()
+                    .items_center()
+                    .cursor_pointer()
+                    .text_sm()
+                    .font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(rgb(if self.ribbon_page == RibbonPage::View {
+                        0x0067C0
+                    } else {
+                        TEXT
+                    }))
+                    .border_b_2()
+                    .border_color(rgb(if self.ribbon_page == RibbonPage::View {
+                        0x0078D4
+                    } else {
+                        CANVAS
+                    }))
                     .child("Exibir")
                     .on_click(cx.listener(|this, _, _, cx| this.show_ribbon(RibbonPage::View, cx))),
             )
             .child(
-                div().id("ribbon-themes").h_full().px_5()
-                    .flex().items_center().cursor_pointer()
-                    .text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
-                    .text_color(rgb(if self.ribbon_page == RibbonPage::Themes { 0x0067C0 } else { TEXT }))
-                    .border_b_2().border_color(rgb(if self.ribbon_page == RibbonPage::Themes { 0x0078D4 } else { CANVAS }))
+                div()
+                    .id("ribbon-themes")
+                    .h_full()
+                    .px_5()
+                    .flex()
+                    .items_center()
+                    .cursor_pointer()
+                    .text_sm()
+                    .font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(rgb(if self.ribbon_page == RibbonPage::Themes {
+                        0x0067C0
+                    } else {
+                        TEXT
+                    }))
+                    .border_b_2()
+                    .border_color(rgb(if self.ribbon_page == RibbonPage::Themes {
+                        0x0078D4
+                    } else {
+                        CANVAS
+                    }))
                     .child("Temas")
-                    .on_click(cx.listener(|this, _, _, cx| this.show_ribbon(RibbonPage::Themes, cx))),
+                    .on_click(
+                        cx.listener(|this, _, _, cx| this.show_ribbon(RibbonPage::Themes, cx)),
+                    ),
             );
-        let mut groups = div().h(px(100.)).px_2().flex().items_stretch()
-            .bg(rgb(TOOLBAR_BG)).border_b_1().border_color(rgb(BORDER));
+        let mut groups = div()
+            .h(px(100.))
+            .px_2()
+            .flex()
+            .items_stretch()
+            .bg(rgb(TOOLBAR_BG))
+            .border_b_1()
+            .border_color(rgb(BORDER));
 
         match self.ribbon_page {
             RibbonPage::Home => {
                 groups = groups
-                    .child(ribbon_group("Área de transferência",
-                        div().flex().items_center().gap_1()
-                            .child(Button::new("home-paste").ghost().icon(IconName::ClipboardPaste)
-                                .label("Colar")
-                                .disabled(self.copied.is_none() || self.transfer_in_progress)
-                                .on_click(cx.listener(|this, _, _, cx| this.paste(cx))))
-                            .child(div().flex().flex_col().gap_1()
-                                .child(Button::new("home-copy").ghost().icon(IconName::Copy)
-                                    .label("Copiar").disabled(self.selected.is_none())
-                                    .on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))))
-                                .child(Button::new("home-cut").ghost().icon(IconName::Scissors)
-                                    .label("Recortar").disabled(self.selected.is_none())
-                                    .on_click(cx.listener(|this, _, _, cx| this.cut_selected(cx))))),
+                    .child(ribbon_group(
+                        "Área de transferência",
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_1()
+                            .child(
+                                Button::new("home-paste")
+                                    .ghost()
+                                    .icon(IconName::ClipboardPaste)
+                                    .label("Colar")
+                                    .disabled(self.copied.is_none() || self.transfer_in_progress)
+                                    .on_click(cx.listener(|this, _, _, cx| this.paste(cx))),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_1()
+                                    .child(
+                                        Button::new("home-copy")
+                                            .ghost()
+                                            .icon(IconName::Copy)
+                                            .label("Copiar")
+                                            .disabled(self.selected.is_none())
+                                            .on_click(
+                                                cx.listener(|this, _, _, cx| {
+                                                    this.copy_selected(cx)
+                                                }),
+                                            ),
+                                    )
+                                    .child(
+                                        Button::new("home-cut")
+                                            .ghost()
+                                            .icon(IconName::Scissors)
+                                            .label("Recortar")
+                                            .disabled(self.selected.is_none())
+                                            .on_click(
+                                                cx.listener(|this, _, _, cx| this.cut_selected(cx)),
+                                            ),
+                                    ),
+                            ),
                     ))
-                    .child(ribbon_group("Organizar",
-                        div().flex().flex_col().gap_1()
-                            .child(Button::new("home-rename").ghost().icon(IconName::FilePen)
-                                .label("Renomear").disabled(self.selected.is_none())
-                                .on_click(cx.listener(|this, _, window, cx| this.begin_rename(window, cx))))
-                            .child(Button::new("home-trash").ghost().icon(IconName::Trash)
-                                .label("Excluir").disabled(self.selected.is_none())
-                                .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx)))),
+                    .child(ribbon_group(
+                        "Organizar",
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                Button::new("home-rename")
+                                    .ghost()
+                                    .icon(IconName::FilePen)
+                                    .label("Renomear")
+                                    .disabled(self.selected.is_none())
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.begin_rename(window, cx)
+                                    })),
+                            )
+                            .child(
+                                Button::new("home-trash")
+                                    .ghost()
+                                    .icon(IconName::Trash)
+                                    .label("Excluir")
+                                    .disabled(self.selected.is_none())
+                                    .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx))),
+                            ),
                     ))
-                    .child(ribbon_group("Novo",
-                        div().flex().items_center()
-                            .child(Button::new("home-new-folder").ghost().icon(IconName::FolderPlus)
+                    .child(ribbon_group(
+                        "Novo",
+                        div().flex().items_center().child(
+                            Button::new("home-new-folder")
+                                .ghost()
+                                .icon(IconName::FolderPlus)
                                 .label("Nova pasta")
-                                .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx)))),
+                                .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx))),
+                        ),
                     ))
-                    .child(ribbon_group("Abrir",
-                        div().flex().items_center()
-                            .child(Button::new("home-open").ghost().icon(IconName::FolderOpen)
-                                .label("Abrir").disabled(self.selected.is_none())
+                    .child(ribbon_group(
+                        "Abrir",
+                        div().flex().items_center().child(
+                            Button::new("home-open")
+                                .ghost()
+                                .icon(IconName::FolderOpen)
+                                .label("Abrir")
+                                .disabled(self.selected.is_none())
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     if let Some(path) = this.selected.clone() {
                                         this.open_entry(path, cx);
                                     }
-                                }))),
+                                })),
+                        ),
                     ))
-                    .child(ribbon_group("Selecionar",
-                        div().flex().flex_col().gap_1()
-                            .child(Button::new("select-all").ghost().icon(IconName::ListChecks)
-                                .label("Selecionar tudo")
-                                .on_click(cx.listener(|this, _, _, cx| this.select_all(cx))))
-                            .child(Button::new("select-none").ghost().icon(IconName::ListX)
-                                .label("Limpar seleção")
-                                .on_click(cx.listener(|this, _, _, cx| this.clear_selection(cx))))
-                            .child(Button::new("select-invert").ghost().icon(IconName::CheckCheck)
-                                .label("Inverter")
-                                .on_click(cx.listener(|this, _, _, cx| this.invert_selection(cx)))),
+                    .child(ribbon_group(
+                        "Selecionar",
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                Button::new("select-all")
+                                    .ghost()
+                                    .icon(IconName::ListChecks)
+                                    .label("Selecionar tudo")
+                                    .on_click(cx.listener(|this, _, _, cx| this.select_all(cx))),
+                            )
+                            .child(
+                                Button::new("select-none")
+                                    .ghost()
+                                    .icon(IconName::ListX)
+                                    .label("Limpar seleção")
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.clear_selection(cx)),
+                                    ),
+                            )
+                            .child(
+                                Button::new("select-invert")
+                                    .ghost()
+                                    .icon(IconName::CheckCheck)
+                                    .label("Inverter")
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.invert_selection(cx)),
+                                    ),
+                            ),
                     ));
             }
             RibbonPage::View => {
                 groups = groups
-                    .child(ribbon_group("Painéis",
-                        div().flex().flex_col().gap_1()
-                            .child(Button::new("view-navigation").ghost().icon(IconName::PanelLeft)
-                                .label(if self.show_navigation { "Ocultar árvore" } else { "Painel de navegação" })
-                                .on_click(cx.listener(|this, _, _, cx| this.toggle_navigation(cx))))
-                            .child(Button::new("view-details").ghost().icon(IconName::PanelRight)
-                                .label(if self.details_open { "Ocultar detalhes" } else { "Painel de detalhes" })
-                                .on_click(cx.listener(|this, _, _, cx| this.toggle_details(cx)))),
+                    .child(ribbon_group(
+                        "Painéis",
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                Button::new("view-navigation")
+                                    .ghost()
+                                    .icon(IconName::PanelLeft)
+                                    .label(if self.show_navigation {
+                                        "Ocultar árvore"
+                                    } else {
+                                        "Painel de navegação"
+                                    })
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.toggle_navigation(cx)),
+                                    ),
+                            )
+                            .child(
+                                Button::new("view-details")
+                                    .ghost()
+                                    .icon(IconName::PanelRight)
+                                    .label(if self.details_open {
+                                        "Ocultar detalhes"
+                                    } else {
+                                        "Painel de detalhes"
+                                    })
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.toggle_details(cx)),
+                                    ),
+                            ),
                     ))
-                    .child(ribbon_group("Layout",
-                        div().flex().flex_col().gap_1()
-                            .child(Button::new("view-table").ghost().icon(IconName::List)
-                                .label("Detalhes")
-                                .on_click(cx.listener(|this, _, _, cx| this.set_view_mode(ViewMode::Details, cx))))
-                            .child(Button::new("view-tiles").ghost().icon(IconName::LayoutGrid)
-                                .label("Blocos")
-                                .on_click(cx.listener(|this, _, _, cx| this.set_view_mode(ViewMode::Tiles, cx)))),
+                    .child(ribbon_group(
+                        "Layout",
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                Button::new("view-table")
+                                    .ghost()
+                                    .icon(IconName::List)
+                                    .label("Detalhes")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.set_view_mode(ViewMode::Details, cx)
+                                    })),
+                            )
+                            .child(
+                                Button::new("view-tiles")
+                                    .ghost()
+                                    .icon(IconName::LayoutGrid)
+                                    .label("Blocos")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.set_view_mode(ViewMode::Tiles, cx)
+                                    })),
+                            ),
                     ))
-                    .child(ribbon_group("Exibir / ocultar",
-                        div().flex().flex_col().gap_1()
-                            .child(Button::new("view-hidden").ghost().icon(IconName::Eye)
-                                .label(if self.show_hidden { "Ocultos: sim" } else { "Itens ocultos" })
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.show_hidden = !this.show_hidden;
-                                    this.reload(cx);
-                                })))
-                            .child(Button::new("view-row-numbers").ghost().icon(IconName::ListOrdered)
-                                .label(if self.show_row_numbers { "Números: sim" } else { "Números de linha" })
-                                .on_click(cx.listener(|this, _, _, cx| this.toggle_row_numbers(cx)))),
+                    .child(ribbon_group(
+                        "Exibir / ocultar",
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                Button::new("view-hidden")
+                                    .ghost()
+                                    .icon(IconName::Eye)
+                                    .label(if self.show_hidden {
+                                        "Ocultos: sim"
+                                    } else {
+                                        "Itens ocultos"
+                                    })
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.show_hidden = !this.show_hidden;
+                                        this.reload(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("view-row-numbers")
+                                    .ghost()
+                                    .icon(IconName::ListOrdered)
+                                    .label(if self.show_row_numbers {
+                                        "Números: sim"
+                                    } else {
+                                        "Números de linha"
+                                    })
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.toggle_row_numbers(cx)),
+                                    ),
+                            ),
                     ))
-                    .child(ribbon_group("Organizar",
-                        div().flex().items_center()
-                            .child(Button::new("view-sort").ghost().icon(IconName::ArrowDownAZ)
+                    .child(ribbon_group(
+                        "Organizar",
+                        div().flex().items_center().child(
+                            Button::new("view-sort")
+                                .ghost()
+                                .icon(IconName::ArrowDownAZ)
                                 .label(format!("Classificar: {}", self.sort.label()))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.sort = this.sort.next();
                                     this.reload(cx);
-                                }))),
+                                })),
+                        ),
                     ))
-                    .child(ribbon_group("Exportar",
-                        div().flex().items_center()
-                            .child(Button::new("view-export").ghost().icon(IconName::FileDown)
-                                .label("Exportar CSV").disabled(self.transfer_in_progress)
-                                .on_click(cx.listener(|this, _, _, cx| this.export_listing(cx)))),
+                    .child(ribbon_group(
+                        "Exportar",
+                        div().flex().items_center().child(
+                            Button::new("view-export")
+                                .ghost()
+                                .icon(IconName::FileDown)
+                                .label("Exportar CSV")
+                                .disabled(self.transfer_in_progress)
+                                .on_click(cx.listener(|this, _, _, cx| this.export_listing(cx))),
+                        ),
                     ));
             }
             RibbonPage::Themes => {
                 groups = groups
-                    .child(ribbon_group("Tema do Windows",
-                        div().flex().items_center().gap_2()
-                            .child(Button::new("theme-win11").icon(IconName::Sun)
+                    .child(ribbon_group(
+                        "Tema do Windows",
+                        div().flex().items_center().gap_2().child(
+                            Button::new("theme-win11")
+                                .icon(IconName::Sun)
                                 .label("Windows 11 claro")
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     Theme::change(ThemeMode::Light, None, cx);
                                     this.status = "Tema Windows 11 claro selecionado".to_owned();
                                     cx.notify();
-                                }))),
+                                })),
+                        ),
                     ))
-                    .child(div().flex().items_center().px_4().text_xs()
-                        .text_color(rgb(SECONDARY))
-                        .child("Outros temas da referência ainda não foram implementados."));
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .px_4()
+                            .text_xs()
+                            .text_color(rgb(SECONDARY))
+                            .child("Outros temas da referência ainda não foram implementados."),
+                    );
             }
         }
         if self.confirm_trash {
-            groups = groups.child(ribbon_group("Confirmar exclusão",
-                div().flex().items_center().gap_1()
-                    .child(Button::new("trash-confirm").icon(IconName::Check).label("Enviar à Lixeira")
-                        .on_click(cx.listener(|this, _, _, cx| this.confirm_trash(cx))))
-                    .child(Button::new("trash-cancel").ghost().icon(IconName::X).label("Cancelar")
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.confirm_trash = false;
-                            cx.notify();
-                        }))),
+            groups = groups.child(ribbon_group(
+                "Confirmar exclusão",
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .child(
+                        Button::new("trash-confirm")
+                            .icon(IconName::Check)
+                            .label("Enviar à Lixeira")
+                            .on_click(cx.listener(|this, _, _, cx| this.confirm_trash(cx))),
+                    )
+                    .child(
+                        Button::new("trash-cancel")
+                            .ghost()
+                            .icon(IconName::X)
+                            .label("Cancelar")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.confirm_trash = false;
+                                cx.notify();
+                            })),
+                    ),
             ));
         }
 
@@ -344,64 +591,130 @@ impl FilesApp {
     // The reference app has a file-tree pane, not a dashboard-style sidebar.
     // Ancestors and immediate child folders form the visible navigation hierarchy.
     fn navigation_tree(&mut self, cx: &mut Context<Self>) -> Div {
-        let quick_access = self.shortcuts.clone().into_iter().enumerate().map(|(index, (label, path))| {
-            let active = self.directory == path;
-            let icon = if label.starts_with("Disco") { IconName::HardDrive } else { IconName::Folder };
-            div().id(("quick-access", index))
-                .h(px(28.)).px_3().flex().items_center().gap_2()
-                .cursor_pointer().text_sm()
-                .text_color(rgb(TEXT))
-                .bg(rgb(if active { SELECTED } else { CANVAS }))
-                .hover(|style| style.bg(rgb(HOVER)))
-                .child(Icon::new(icon).small().text_color(rgb(0xD69E42)))
-                .child(label)
-                .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
-        }).collect::<Vec<_>>();
+        let quick_access = self
+            .shortcuts
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(index, (label, path))| {
+                let active = self.directory == path;
+                let icon = if label.starts_with("Disco") {
+                    IconName::HardDrive
+                } else {
+                    IconName::Folder
+                };
+                div()
+                    .id(("quick-access", index))
+                    .h(px(28.))
+                    .px_3()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .cursor_pointer()
+                    .text_sm()
+                    .text_color(rgb(TEXT))
+                    .bg(rgb(if active { SELECTED } else { CANVAS }))
+                    .hover(|style| style.bg(rgb(HOVER)))
+                    .child(Icon::new(icon).small().text_color(rgb(0xD69E42)))
+                    .child(label)
+                    .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+            })
+            .collect::<Vec<_>>();
 
-        let mut ancestry = self.directory.ancestors()
+        let mut ancestry = self
+            .directory
+            .ancestors()
             .filter(|path| !path.as_os_str().is_empty())
             .map(Path::to_path_buf)
             .collect::<Vec<_>>();
         ancestry.reverse();
         let ancestor_count = ancestry.len();
-        let mut tree_rows = ancestry.into_iter().enumerate().map(|(depth, path)| {
-            let active = path == self.directory;
-            div().id(("tree-ancestor", depth))
-                .h(px(29.)).pl(px(11. + depth.min(5) as f32 * 14.))
-                .pr_2().flex().items_center().gap_2()
-                .cursor_pointer().text_sm().text_color(rgb(TEXT))
-                .bg(rgb(if active { SELECTED } else { CANVAS }))
-                .hover(|style| style.bg(rgb(HOVER)))
-                .child(Icon::new(IconName::FolderOpen).small().text_color(rgb(0xD69E42)))
-                .child(display_name(&path))
-                .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
-        }).collect::<Vec<_>>();
+        let mut tree_rows = ancestry
+            .into_iter()
+            .enumerate()
+            .map(|(depth, path)| {
+                let active = path == self.directory;
+                div()
+                    .id(("tree-ancestor", depth))
+                    .h(px(29.))
+                    .pl(px(11. + depth.min(5) as f32 * 14.))
+                    .pr_2()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .cursor_pointer()
+                    .text_sm()
+                    .text_color(rgb(TEXT))
+                    .bg(rgb(if active { SELECTED } else { CANVAS }))
+                    .hover(|style| style.bg(rgb(HOVER)))
+                    .child(
+                        Icon::new(IconName::FolderOpen)
+                            .small()
+                            .text_color(rgb(0xD69E42)),
+                    )
+                    .child(display_name(&path))
+                    .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+            })
+            .collect::<Vec<_>>();
 
-        let direct_folders = self.entries.iter()
+        let direct_folders = self
+            .entries
+            .iter()
             .filter(|entry| entry.kind == EntryKind::Folder)
             .take(80)
             .map(|entry| entry.path.clone())
             .collect::<Vec<_>>();
         tree_rows.extend(direct_folders.into_iter().enumerate().map(|(index, path)| {
-            div().id(("tree-child", index))
-                .h(px(29.)).pl(px(11. + ancestor_count.min(5) as f32 * 14.))
-                .pr_2().flex().items_center().gap_2()
-                .cursor_pointer().text_sm().text_color(rgb(TEXT))
+            div()
+                .id(("tree-child", index))
+                .h(px(29.))
+                .pl(px(11. + ancestor_count.min(5) as f32 * 14.))
+                .pr_2()
+                .flex()
+                .items_center()
+                .gap_2()
+                .cursor_pointer()
+                .text_sm()
+                .text_color(rgb(TEXT))
                 .hover(|style| style.bg(rgb(HOVER)))
-                .child(Icon::new(IconName::Folder).small().text_color(rgb(0xD69E42)))
+                .child(
+                    Icon::new(IconName::Folder)
+                        .small()
+                        .text_color(rgb(0xD69E42)),
+                )
                 .child(display_name(&path))
                 .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
         }));
 
-        div().id("explorer-navigation-tree")
-            .w(px(224.)).flex_shrink_0().h_full()
+        div()
+            .id("explorer-navigation-tree")
+            .w(px(224.))
+            .flex_shrink_0()
+            .h_full()
             .overflow_y_scroll()
-            .bg(rgb(CANVAS)).border_r_1().border_color(rgb(BORDER))
-            .child(div().h(px(30.)).px_3().flex().items_center().text_xs()
-                .text_color(rgb(SECONDARY)).child("Acesso rápido"))
+            .bg(rgb(CANVAS))
+            .border_r_1()
+            .border_color(rgb(BORDER))
+            .child(
+                div()
+                    .h(px(30.))
+                    .px_3()
+                    .flex()
+                    .items_center()
+                    .text_xs()
+                    .text_color(rgb(SECONDARY))
+                    .child("Acesso rápido"),
+            )
             .children(quick_access)
-            .child(div().h(px(34.)).px_3().pt_3().text_xs()
-                .text_color(rgb(SECONDARY)).child("Pastas"))
+            .child(
+                div()
+                    .h(px(34.))
+                    .px_3()
+                    .pt_3()
+                    .text_xs()
+                    .text_color(rgb(SECONDARY))
+                    .child("Pastas"),
+            )
             .children(tree_rows)
     }
 
@@ -829,7 +1142,9 @@ impl Render for FilesApp {
                     .min_h_0()
                     .flex()
                     .bg(rgb(CANVAS))
-                    .when(self.show_navigation, |this| this.child(self.navigation_tree(cx)))
+                    .when(self.show_navigation, |this| {
+                        this.child(self.navigation_tree(cx))
+                    })
                     .child(
                         div()
                             .flex_1()
