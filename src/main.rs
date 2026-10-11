@@ -521,6 +521,18 @@ impl FilesApp {
         }
     }
 
+    fn create_text_file(&mut self, cx: &mut Context<Self>) {
+        match operations::create_text_file(&self.directory) {
+            Ok(path) => {
+                self.reload(cx);
+                self.set_selection(path);
+                self.status = "Novo arquivo de texto criado".to_owned();
+                cx.notify();
+            }
+            Err(error) => self.report_error("Novo arquivo", error, cx),
+        }
+    }
+
     fn copy_selected(&mut self, cx: &mut Context<Self>) {
         if let Some(path) = &self.selected {
             self.copied = Some(path.clone());
