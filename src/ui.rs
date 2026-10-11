@@ -29,7 +29,6 @@ const TEXT: u32 = 0x202020;
 const SECONDARY: u32 = 0x626262;
 const HOVER: u32 = 0xF2F5F9;
 const SELECTED: u32 = 0xDFEBFA;
-const ACCENT: u32 = 0x0078D4;
 
 fn display_name(path: &Path) -> String {
     path.file_name()
