@@ -474,6 +474,12 @@ impl FilesApp {
         cx.notify();
     }
 
+    fn ensure_context_selection(&mut self, path: &std::path::Path) {
+        if !self.selected_paths.iter().any(|selected| selected == path) {
+            self.set_selection(path.to_path_buf());
+        }
+    }
+
     fn set_selection(&mut self, path: PathBuf) {
         self.selected_paths = vec![path.clone()];
         self.selected = Some(path);
