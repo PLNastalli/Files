@@ -9,7 +9,7 @@ use std::{
 
 use files::filesystem::{self, EntryKind, FileEntry, SortBy};
 use gpui_kit::{
-    App, Bounds, ClickEvent, Context, Div, Entity, FocusHandle, KeyBinding, Render, Stateful,
+    App, Bounds, ClickEvent, Context, Div, Entity, FocusHandle, KeyBinding, Render,
     Subscription, Window, WindowBounds, WindowOptions, actions, div, prelude::*, px, size,
 };
 use gpui_kit::assets::IconName;
@@ -310,7 +310,7 @@ impl FilesApp {
                 .disabled(self.copied.is_none())
                 .on_click(cx.listener(|this, _, _, cx| this.paste(cx))))
             .child(Button::new("trash")
-                .icon(IconName::Trash2)
+                .icon(IconName::Trash)
                 .label("Lixeira")
                 .disabled(self.selected.is_none())
                 .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx))))
@@ -378,8 +378,7 @@ impl FilesApp {
                 .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
         }).collect::<Vec<_>>();
 
-        Sidebar::new()
-            .width(248)
+        Sidebar::new("files-navigation").w(px(248.))
             .header(
                 SidebarHeader::new()
                     .child(
