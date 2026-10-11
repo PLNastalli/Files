@@ -68,7 +68,12 @@ pub fn read_directory(path: &Path, show_hidden: bool, sort: SortBy) -> io::Resul
     for result in fs::read_dir(path)? {
         let entry = result?;
         let name = entry.file_name().to_string_lossy().into_owned();
-        let metadata = fs::symlink_metadata(entry.path())?;
+        let metadata = match fs::symlink_metadata(entry.path()) {
+            Ok(metadata) => metadata,
+            // Files can disappear between read_dir and metadata: skip these races.
+            Err(error) if error.kind() == ErrorKind::NotFound => continue,
+            Err(error) => return Err(error),
+        };
         if !show_hidden && is_hidden(&name, &metadata) {
             continue;
         }
@@ -88,17 +93,30 @@ pub fn read_directory(path: &Path, show_hidden: bool, sort: SortBy) -> io::Resul
         });
     }
 
-    entries.sort_by(|a, b| {
-        let rank = |entry: &FileEntry| if entry.kind == EntryKind::Folder { 0 } else { 1 };
-        rank(a).cmp(&rank(b)).then_with(|| {
-            let comparison = match sort {
-                SortBy::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-                SortBy::Size => a.size.cmp(&b.size),
-                SortBy::Modified => a.modified.cmp(&b.modified),
-            };
-            comparison.then_with(|| a.name.cmp(&b.name))
-        })
-    });
+    match sort {
+        SortBy::Name => {
+            // Cache case-insensitive keys once per entry, not on every comparison.
+            entries.sort_by_cached_key(|entry| {
+                (u8::from(entry.kind != EntryKind::Folder), entry.name.to_lowercase(), entry.name.clone())
+            });
+        }
+        SortBy::Size => {
+            entries.sort_by(|a, b| {
+                u8::from(a.kind != EntryKind::Folder)
+                    .cmp(&u8::from(b.kind != EntryKind::Folder))
+                    .then_with(|| a.size.cmp(&b.size))
+                    .then_with(|| a.name.cmp(&b.name))
+            });
+        }
+        SortBy::Modified => {
+            entries.sort_by(|a, b| {
+                u8::from(a.kind != EntryKind::Folder)
+                    .cmp(&u8::from(b.kind != EntryKind::Folder))
+                    .then_with(|| a.modified.cmp(&b.modified))
+                    .then_with(|| a.name.cmp(&b.name))
+            });
+        }
+    }
     Ok(entries)
 }
 
@@ -137,11 +155,19 @@ pub fn create_folder(parent: &Path) -> io::Result<PathBuf> {
     Err(io::Error::new(ErrorKind::AlreadyExists, "Muitas pastas com o mesmo nome"))
 }
 
+fn is_available(path: &Path) -> io::Result<bool> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => Ok(false),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(true),
+        Err(error) => Err(error),
+    }
+}
+
 /// Resolve copy collisions without silently replacing anything.
 pub fn unique_copy_path(parent: &Path, original_name: &OsStr, directory: bool) -> io::Result<PathBuf> {
     let original = Path::new(original_name);
     let first = parent.join(original);
-    if fs::symlink_metadata(&first).is_err_and(|e| e.kind() == ErrorKind::NotFound) {
+    if is_available(&first)? {
         return Ok(first);
     }
     let stem = if directory {
@@ -168,7 +194,7 @@ pub fn unique_copy_path(parent: &Path, original_name: &OsStr, directory: bool) -
             format!(" (cópia {index})")
         };
         let target = parent.join(format!("{stem}{suffix}{extension}"));
-        if fs::symlink_metadata(&target).is_err_and(|e| e.kind() == ErrorKind::NotFound) {
+        if is_available(&target)? {
             return Ok(target);
         }
     }
@@ -289,6 +315,48 @@ mod tests {
         let second = copy_into(&source, &destination).unwrap();
         assert_ne!(first, second);
         assert_eq!(fs::read_to_string(second).unwrap(), "hello");
+    }
+
+    #[test]
+    fn copy_keeps_existing_destination_unchanged() {
+        let root = tempdir().unwrap();
+        let out = root.path().join("out");
+        fs::create_dir(&out).unwrap();
+        let source = root.path().join("file.txt");
+        fs::write(&source, "new").unwrap();
+        fs::write(out.join("file.txt"), "existing").unwrap();
+        let copied = copy_into(&source, &out).unwrap();
+        assert_ne!(copied, out.join("file.txt"));
+        assert_eq!(fs::read_to_string(out.join("file.txt")).unwrap(), "existing");
+        assert_eq!(fs::read_to_string(copied).unwrap(), "new");
+    }
+
+    #[test]
+    fn copy_rejects_missing_target_directory() {
+        let root = tempdir().unwrap();
+        let source = root.path().join("file.txt");
+        fs::write(&source, "test").unwrap();
+        assert_eq!(
+            copy_into(&source, &root.path().join("missing")).unwrap_err().kind(),
+            ErrorKind::InvalidInput,
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn copy_rejects_symlink_sources() {
+        use std::os::unix::fs::symlink;
+        let root = tempdir().unwrap();
+        let source = root.path().join("source.txt");
+        fs::write(&source, "test").unwrap();
+        let link = root.path().join("link.txt");
+        symlink(&source, &link).unwrap();
+        let out = root.path().join("out");
+        fs::create_dir(&out).unwrap();
+        assert_eq!(
+            copy_into(&link, &out).unwrap_err().kind(),
+            ErrorKind::InvalidInput,
+        );
     }
 
     #[test]
