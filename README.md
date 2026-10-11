@@ -18,14 +18,14 @@ Files is an experimental GPU-rendered desktop file manager that combines an Expl
 | Navigation | Home and common-folder shortcuts, local drives, breadcrumbs, Back, Forward, Up, Refresh |
 | Directory listing | Name/size/modified ordering, folders first, optional hidden entries |
 | Search | Case-insensitive filter of the **current directory only**; no recursive index |
-| Explorer-like UI | Windows 11-inspired light palette, tabs, Details/Tiles views, optional metadata panel |
-| File handling | Open, create folder, rename one item, copy, cut/move on the same volume, recycle bin |
+| Explorer-like UI | Windows 11-inspired light palette, tabs, Details/Tiles, metadata panel, Ctrl-click selection and optional row numbers |
+| File handling | Open, create folder, rename one item, numbered batch rename, copy and same-volume cut/move, recycle bin |
 | Export | Current directory listing to non-overwriting CSV (UTF-8 BOM; spreadsheet formula prefixes sanitized) |
 | Live updates | `notify` watches the current directory (non-recursive) |
 | Background work | One copy, move or CSV export task at a time; no progress or cancellation yet |
 | Tests | Isolated filesystem unit/regression tests; Windows CI |
 
-**Not implemented:** virtualized tree, real thumbnails and content previews, drag-and-drop, cross-volume cut/move, batch rename, indexed search, multi-selection, undo, copy progress/cancellation and robust recovery after partial transfers. See the [feature-parity tracker](docs/FEATURE_PARITY.md) for the full comparison with the reference app.
+**Not implemented:** virtualized tree, real thumbnails/content previews, drag-and-drop, cross-volume cut/move, formula-based batch rename, indexed search, undo, copy progress/cancellation and robust recovery after partial transfers. Numbered batch rename and Ctrl-click multi-selection are experimental and don't yet extend to every file operation. See the [feature-parity tracker](docs/FEATURE_PARITY.md) for the full comparison with the reference app.
 
 ## Getting started
 
@@ -62,11 +62,13 @@ First builds may take several minutes because the GPUI UI toolkit has substantia
 | Ctrl + Shift + N | Create a folder |
 | Ctrl + C / Ctrl + V | Copy selected item / Paste into current folder |
 | Ctrl + X | Cut selected item for same-volume move |
-| F2 | Open rename editor for selected item |
+| F2 | Rename one selected item; use a numbered prefix when multiple items are selected |
 | Ctrl + Shift + E | Export current folder listing as CSV |
 | Ctrl + T / Ctrl + W | Open a new tab / Close active tab |
 | Ctrl + Shift + 1 | Switch between Details and Tiles |
 | Alt + Shift + P | Toggle metadata details panel |
+| Ctrl + Shift + L | Toggle row-number column |
+| Ctrl + click | Select or deselect multiple files for numbered batch renaming |
 | Enter | Open selected item |
 | Delete | Ask before sending selected item to Trash |
 | Ctrl + H | Toggle hidden files |
@@ -129,7 +131,7 @@ The [feature-parity tracker](docs/FEATURE_PARITY.md) records which reference Fil
 ## Roadmap
 
 1. **Stability:** passing CI, manual Windows smoke tests, reliable error presentation, basic accessibility.
-2. **File operations:** progress and cancellation, reliable staging/recovery, batch rename, multi-selection and undo.
+2. **File operations:** progress/cancellation, reliable staging/recovery, full formula batch rename, multi-item copy/move/trash and undo.
 3. **Scale:** async directory scanning, list virtualization, bounded thumbnail cache, indexed search.
 4. **Experience:** previews, better per-tab navigation, keyboard navigation, configurable appearance and polish.
 
