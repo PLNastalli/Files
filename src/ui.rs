@@ -178,6 +178,13 @@ impl FilesApp {
                     .on_click(cx.listener(|this, _, _, cx| this.toggle_view(cx))),
             )
             .child(
+                Button::new("row-numbers")
+                    .ghost()
+                    .icon(IconName::ListOrdered)
+                    .label("Linhas")
+                    .on_click(cx.listener(|this, _, _, cx| this.toggle_row_numbers(cx))),
+            )
+            .child(
                 Button::new("export-csv")
                     .ghost()
                     .icon(IconName::FileDown)
@@ -502,6 +509,9 @@ impl FilesApp {
                             .rounded_md().cursor_pointer()
                             .bg(rgb(if selected { SELECTED } else { CANVAS }))
                             .hover(|style| style.bg(rgb(HOVER)))
+                            .when(self.show_row_numbers, |this| {
+                                this.child(div().w(px(36.)).text_xs().text_color(rgb(SECONDARY)).child((index + 1).to_string()))
+                            })
                             .child(Icon::new(symbol).large()
                                 .text_color(if folder { cx.theme().primary } else { cx.theme().muted_foreground }))
                             .child(div().w_full().text_center().text_sm().text_color(rgb(TEXT))
@@ -569,6 +579,9 @@ impl FilesApp {
                         .bg(rgb(TOOLBAR_BG))
                         .border_b_1()
                         .border_color(rgb(BORDER))
+                        .when(self.show_row_numbers, |this| {
+                            this.child(div().w(px(36.)).child("#"))
+                        })
                         .child(div().flex_1().child("Nome"))
                         .child(div().w(px(162.)).child("Data de modificação"))
                         .child(div().w(px(112.)).child("Tipo"))
@@ -678,6 +691,7 @@ impl Render for FilesApp {
             .on_action(cx.listener(|this, _: &Cut, _, cx| this.cut_selected(cx)))
             .on_action(cx.listener(|this, _: &Rename, window, cx| this.begin_rename(window, cx)))
             .on_action(cx.listener(|this, _: &ExportCsv, _, cx| this.export_listing(cx)))
+            .on_action(cx.listener(|this, _: &ToggleRowNumbers, _, cx| this.toggle_row_numbers(cx)))
             .on_action(cx.listener(|this, _: &Delete, _, cx| this.request_trash(cx)))
             .on_action(cx.listener(|this, _: &OpenSelected, _, cx| {
                 if let Some(path) = this.selected.clone() {
