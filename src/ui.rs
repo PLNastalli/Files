@@ -34,14 +34,32 @@ fn display_name(path: &Path) -> String {
         .unwrap_or_else(|| path.display().to_string())
 }
 
-fn modified_date(entry: &FileEntry) -> String {
-    entry
-        .modified
+fn display_datetime(timestamp: Option<std::time::SystemTime>) -> String {
+    timestamp
         .map(|time| {
             let datetime: DateTime<Local> = time.into();
             datetime.format("%d/%m/%Y %H:%M").to_string()
         })
         .unwrap_or_else(|| "—".to_owned())
+}
+
+fn modified_date(entry: &FileEntry) -> String {
+    display_datetime(entry.modified)
+}
+
+fn created_date(entry: &FileEntry) -> String {
+    display_datetime(entry.created)
+}
+
+fn file_type_name(entry: &FileEntry) -> String {
+    match entry.kind {
+        EntryKind::Folder => "Pasta de arquivos".to_owned(),
+        EntryKind::Symlink => "Atalho / link".to_owned(),
+        EntryKind::File => match entry.path.extension().and_then(|extension| extension.to_str()) {
+            Some(extension) if !extension.is_empty() => format!("Arquivo {}", extension.to_ascii_uppercase()),
+            _ => "Arquivo".to_owned(),
+        },
+    }
 }
 
 /// Thin Ribbon group: command area above, small caption along the lower edge,
@@ -596,24 +614,26 @@ impl FilesApp {
                     };
                     list = list.child(
                         div().id(("file-row", index))
-                            .mx_2().h(px(36.)).px_3()
-                            .flex().items_center().gap_2().rounded_sm()
+                            .h(px(29.)).px_3()
+                            .flex().items_center().gap_2()
                             .cursor_pointer().text_sm()
                             .text_color(rgb(TEXT))
                             .bg(rgb(if selected { SELECTED } else { CANVAS }))
                             .hover(|style| style.bg(rgb(HOVER)))
                             .when(self.show_row_numbers, |this| {
-                                this.child(div().w(px(36.)).text_xs().text_color(rgb(SECONDARY)).child((index + 1).to_string()))
+                                this.child(div().w(px(32.)).text_xs().text_color(rgb(SECONDARY)).child((index + 1).to_string()))
                             })
                             .child(Icon::new(symbol)
-                                .text_color(if folder { cx.theme().primary } else { cx.theme().muted_foreground }))
+                                .text_color(if folder { rgb(0xD69E42) } else { cx.theme().muted_foreground }))
                             .child(div().flex_1().min_w_0().child(entry.name.clone()))
-                            .child(div().w(px(162.)).text_xs().text_color(rgb(SECONDARY))
-                                .child(modified_date(&entry)))
-                            .child(div().w(px(112.)).text_xs().text_color(rgb(SECONDARY))
-                                .child(entry.kind_label()))
-                            .child(div().w(px(90.)).text_right().text_xs().text_color(rgb(SECONDARY))
+                            .child(div().w(px(125.)).text_xs().text_color(rgb(SECONDARY))
+                                .child(file_type_name(&entry)))
+                            .child(div().w(px(83.)).text_right().text_xs().text_color(rgb(SECONDARY))
                                 .child(size))
+                            .child(div().w(px(145.)).text_xs().text_color(rgb(SECONDARY))
+                                .child(created_date(&entry)))
+                            .child(div().w(px(145.)).text_xs().text_color(rgb(SECONDARY))
+                                .child(modified_date(&entry)))
                             .on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
                                 if matches!(event, ClickEvent::Mouse(click) if click.up.click_count >= 2) {
                                     this.open_entry(path.clone(), cx);
@@ -635,8 +655,8 @@ impl FilesApp {
             .when(!tiles, |this| {
                 this.child(
                     div()
-                        .h(px(36.))
-                        .px_5()
+                        .h(px(30.))
+                        .px_3()
                         .flex()
                         .items_center()
                         .text_xs()
@@ -646,12 +666,13 @@ impl FilesApp {
                         .border_b_1()
                         .border_color(rgb(BORDER))
                         .when(self.show_row_numbers, |this| {
-                            this.child(div().w(px(36.)).child("#"))
+                            this.child(div().w(px(32.)).child("#"))
                         })
                         .child(div().flex_1().child("Nome"))
-                        .child(div().w(px(162.)).child("Data de modificação"))
-                        .child(div().w(px(112.)).child("Tipo"))
-                        .child(div().w(px(90.)).text_right().child("Tamanho")),
+                        .child(div().w(px(125.)).child("Tipo"))
+                        .child(div().w(px(83.)).text_right().child("Tamanho"))
+                        .child(div().w(px(145.)).child("Data de criação"))
+                        .child(div().w(px(145.)).child("Data de modificação")),
                 )
             })
             .child(list)
@@ -815,27 +836,6 @@ impl Render for FilesApp {
                             .min_w_0()
                             .flex()
                             .flex_col()
-                            .child(
-                                div()
-                                    .h(px(48.))
-                                    .px_5()
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .bg(rgb(CANVAS))
-                                    .child(
-                                        div()
-                                            .text_base()
-                                            .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                            .child(display_name(&self.directory)),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_xs()
-                                            .text_color(rgb(SECONDARY))
-                                            .child(format!("{} itens", self.entries.len())),
-                                    ),
-                            )
                             .child(self.file_list(cx)),
                     )
                     .when(self.details_open, |this| this.child(self.details_panel(cx))),
