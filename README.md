@@ -19,7 +19,7 @@ Files is an experimental GPU-rendered desktop file manager that combines an Expl
 | Directory listing | Name/size/modified ordering, folders first, optional hidden entries |
 | Search | Case-insensitive filter of the **current directory only**; no recursive index |
 | Explorer-like UI | Windows 11-inspired light palette, Ribbon, tabs, Details/Tiles, metadata panel, Ctrl-click selection and optional row numbers |
-| File handling | Open, create folder, rename one item, numbered batch rename, copy and same-volume cut/move, recycle bin |\n| Context menu | GPUI Kit right-click on file rows/tiles with Open, Copy, Cut, Rename, Trash, Properties (metadata), Copy Path and pin folders |\n| Quick Access | Windows known folders, local drives, user-pinned folders saved under the user's configuration directory |
+| File handling | Open, create folder or blank text file, rename one item, numbered batch rename, copy and same-volume cut/move, recycle bin |\n| Context menu | GPUI Kit right-click on file rows/tiles with Open, Copy, Cut, Rename, Trash, Properties (metadata), Copy Path and pin folders |\n| Quick Access | Windows known folders, local drives, user-pinned folders saved under the user's configuration directory |
 | Export | Current directory listing to non-overwriting CSV (UTF-8 BOM; spreadsheet formula prefixes sanitized) |
 | Live updates | `notify` watches the current directory (non-recursive) |
 | Background work | One copy, move or CSV export task at a time; no progress or cancellation yet |
