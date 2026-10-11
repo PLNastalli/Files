@@ -20,6 +20,13 @@ use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 
 mod ui;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ViewMode {
+    Details,
+    Tiles,
+}
+
+
 actions!(
     files,
     [
@@ -32,7 +39,11 @@ actions!(
         Paste,
         Delete,
         OpenSelected,
-        ToggleHidden
+        ToggleHidden,
+        NewTab,
+        CloseTab,
+        ToggleDetails,
+        ToggleView
     ]
 );
 
@@ -41,6 +52,10 @@ struct FilesApp {
     entries: Vec<FileEntry>,
     history: Vec<PathBuf>,
     history_index: usize,
+    tabs: Vec<PathBuf>,
+    active_tab: usize,
+    details_open: bool,
+    view_mode: ViewMode,
     selected: Option<PathBuf>,
     copied: Option<PathBuf>,
     transfer_in_progress: bool,
@@ -93,11 +108,16 @@ impl FilesApp {
             }
         });
 
+        let result_path = home.clone();
         let mut result = Self {
             directory: home.clone(),
             entries: Vec::new(),
             history: vec![home],
             history_index: 0,
+            tabs: vec![result_path.clone()],
+            active_tab: 0,
+            details_open: false,
+            view_mode: ViewMode::Details,
             selected: None,
             copied: None,
             transfer_in_progress: false,
@@ -211,6 +231,9 @@ impl FilesApp {
     }
 
     fn change_directory(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        if let Some(tab) = self.tabs.get_mut(self.active_tab) {
+            *tab = path.clone();
+        }
         self.directory = path;
         self.selected = None;
         self.confirm_trash = false;
@@ -238,6 +261,50 @@ impl FilesApp {
         if let Some(parent) = self.directory.parent() {
             self.navigate(parent.to_path_buf(), cx);
         }
+    }
+
+    fn new_tab(&mut self, cx: &mut Context<Self>) {
+        self.tabs.push(self.directory.clone());
+        self.active_tab = self.tabs.len() - 1;
+        self.history = vec![self.directory.clone()];
+        self.history_index = 0;
+        cx.notify();
+    }
+
+    fn select_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if index == self.active_tab || index >= self.tabs.len() {
+            return;
+        }
+        self.active_tab = index;
+        let path = self.tabs[index].clone();
+        self.history = vec![path.clone()];
+        self.history_index = 0;
+        self.change_directory(path, cx);
+    }
+
+    fn close_tab(&mut self, cx: &mut Context<Self>) {
+        if self.tabs.len() <= 1 {
+            return;
+        }
+        self.tabs.remove(self.active_tab);
+        self.active_tab = self.active_tab.min(self.tabs.len() - 1);
+        let path = self.tabs[self.active_tab].clone();
+        self.history = vec![path.clone()];
+        self.history_index = 0;
+        self.change_directory(path, cx);
+    }
+
+    fn toggle_details(&mut self, cx: &mut Context<Self>) {
+        self.details_open = !self.details_open;
+        cx.notify();
+    }
+
+    fn toggle_view(&mut self, cx: &mut Context<Self>) {
+        self.view_mode = match self.view_mode {
+            ViewMode::Details => ViewMode::Tiles,
+            ViewMode::Tiles => ViewMode::Details,
+        };
+        cx.notify();
     }
 
     fn open_entry(&mut self, path: PathBuf, cx: &mut Context<Self>) {
@@ -339,7 +406,7 @@ fn main() {
         .with_assets(gpui_kit::assets::AllAssets)
         .run(|cx: &mut App| {
             gpui_kit::init(cx);
-            Theme::change(ThemeMode::Dark, None, cx);
+            Theme::change(ThemeMode::Light, None, cx);
 
             cx.bind_keys([
                 KeyBinding::new("alt-left", Back, None),
@@ -352,6 +419,10 @@ fn main() {
                 KeyBinding::new("delete", Delete, None),
                 KeyBinding::new("enter", OpenSelected, None),
                 KeyBinding::new("ctrl-h", ToggleHidden, None),
+                KeyBinding::new("ctrl-t", NewTab, None),
+                KeyBinding::new("ctrl-w", CloseTab, None),
+                KeyBinding::new("alt-shift-p", ToggleDetails, None),
+                KeyBinding::new("ctrl-shift-1", ToggleView, None),
             ]);
 
             let bounds = Bounds::centered(None, size(px(1200.), px(760.)), cx);
