@@ -292,7 +292,7 @@ impl FilesApp {
 
 
     // GPUI Kit Toolbar: semantic keyboard navigation and consistently styled controls.
-    fn toolbar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn toolbar(&mut self, cx: &mut Context<Self>) -> Div {
         let mut bar = Toolbar::new("files-commands")
             .child(Button::new("new-directory")
                 .icon(IconName::FolderPlus)
@@ -358,7 +358,7 @@ impl FilesApp {
     }
 
     // The navigation area uses the real GPUI Kit sidebar, not hand-painted rows.
-    fn sidebar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn sidebar(&mut self, cx: &mut Context<Self>) -> Sidebar {
         let locations = self.shortcuts.clone().into_iter().map(|(label, path)| {
             let active = self.directory == path;
             let icon = match label.as_str() {
@@ -409,7 +409,7 @@ impl FilesApp {
     }
 
     // Explorer-style navigation and real editable search input.
-    fn navigation(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn navigation(&mut self, cx: &mut Context<Self>) -> Div {
         let mut segments = self.directory.ancestors()
             .filter(|part| !part.as_os_str().is_empty())
             .map(Path::to_path_buf)
@@ -480,7 +480,7 @@ impl FilesApp {
             )
     }
 
-    fn file_list(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn file_list(&mut self, cx: &mut Context<Self>) -> Div {
         let query = self.search.read(cx).value().to_string().to_lowercase();
         let visible: Vec<FileEntry> = self.entries.iter()
             .filter(|entry| query.is_empty() || entry.name.to_lowercase().contains(&query))
