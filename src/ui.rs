@@ -1,5 +1,8 @@
-//! Presentation layer built with GPUI Kit.
+//! Explorer-inspired Windows 11 light presentation, implemented with GPUI Kit.
+//! A cohesive palette lives here instead of scattering raw colors across widgets.
+
 use super::*;
+use chrono::{DateTime, Local};
 use files::filesystem::EntryKind;
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
@@ -9,81 +12,145 @@ use gpui_kit::component::{
     input::Input,
     sidebar::{Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
     status_bar::StatusBar,
+    tab::{Tab, TabBar},
     toolbar::Toolbar,
 };
-use gpui_kit::{ClickEvent, Div, Render, div, prelude::*};
-use std::path::Path;
+use gpui_kit::{ClickEvent, Div, Render, div, prelude::*, rgb};
+use std::path::{Path, PathBuf};
+
+// Win11System is the reference application's default. These are approximations
+// of its light-mode system colors: DevExpress resolves the original palette at runtime.
+const WINDOW_BG: u32 = 0xF3F3F3;
+const CANVAS: u32 = 0xFFFFFF;
+const TOOLBAR_BG: u32 = 0xFBFBFB;
+const SIDEBAR_BG: u32 = 0xF7F7F7;
+const BORDER: u32 = 0xE5E5E5;
+const TEXT: u32 = 0x202020;
+const SECONDARY: u32 = 0x626262;
+const HOVER: u32 = 0xF2F5F9;
+const SELECTED: u32 = 0xDFEBFA;
+const ACCENT: u32 = 0x0078D4;
+
+fn display_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.display().to_string())
+}
+
+fn modified_date(entry: &FileEntry) -> String {
+    entry
+        .modified
+        .map(|time| {
+            let datetime: DateTime<Local> = time.into();
+            datetime.format("%d/%m/%Y %H:%M").to_string()
+        })
+        .unwrap_or_else(|| "—".to_owned())
+}
 
 impl FilesApp {
-    // GPUI Kit Toolbar: semantic keyboard navigation and consistently styled controls.
-    fn toolbar(&mut self, cx: &mut Context<Self>) -> Div {
-        let mut bar = Toolbar::new("files-commands")
+    fn tab_strip(&mut self, cx: &mut Context<Self>) -> Div {
+        let tabs = self.tabs.iter().map(|path| {
+            Tab::new()
+                .label(display_name(path))
+                .icon(Icon::new(IconName::Folder))
+        }).collect::<Vec<_>>();
+
+        div()
+            .h(px(42.))
+            .px_3()
+            .flex()
+            .items_end()
+            .bg(rgb(WINDOW_BG))
+            .border_b_1()
+            .border_color(rgb(BORDER))
             .child(
-                Button::new("new-directory")
-                    .icon(IconName::FolderPlus)
-                    .label("Nova pasta")
+                TabBar::new("explorer-tabs")
+                    .folder()
+                    .selected_index(self.active_tab)
+                    .max_width(px(215.))
+                    .children(tabs)
+                    .on_click(cx.listener(|this, index: &usize, _, cx| {
+                        this.select_tab(*index, cx);
+                    }))
+                    .suffix(
+                        div().flex().items_center().gap_1()
+                            .child(Button::new("tab-add").ghost()
+                                .icon(IconName::Plus)
+                                .tooltip("Nova aba (Ctrl+T)")
+                                .on_click(cx.listener(|this, _, _, cx| this.new_tab(cx))))
+                            .child(Button::new("tab-close").ghost()
+                                .icon(IconName::X)
+                                .tooltip("Fechar aba (Ctrl+W)")
+                                .disabled(self.tabs.len() <= 1)
+                                .on_click(cx.listener(|this, _, _, cx| this.close_tab(cx)))),
+                    ),
+            )
+    }
+
+    fn toolbar(&mut self, cx: &mut Context<Self>) -> Div {
+        let mut bar = Toolbar::new("explorer-commands")
+            .child(
+                Button::new("new-directory").ghost()
+                    .icon(IconName::FolderPlus).label("Novo")
                     .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx))),
             )
-            .content(div().w(px(1.)).h(px(22.)).bg(cx.theme().border))
+            .content(div().w(px(1.)).h(px(23.)).mx_2().bg(rgb(BORDER)))
             .child(
-                Button::new("copy")
-                    .icon(IconName::Copy)
-                    .label("Copiar")
+                Button::new("copy").ghost().icon(IconName::Copy)
+                    .tooltip("Copiar (Ctrl+C)")
                     .disabled(self.selected.is_none())
                     .on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))),
             )
             .child(
-                Button::new("paste")
-                    .icon(IconName::ClipboardPaste)
-                    .label("Colar")
+                Button::new("paste").ghost().icon(IconName::ClipboardPaste)
+                    .tooltip("Colar (Ctrl+V)")
                     .disabled(self.copied.is_none() || self.transfer_in_progress)
                     .on_click(cx.listener(|this, _, _, cx| this.paste(cx))),
             )
             .child(
-                Button::new("trash")
-                    .icon(IconName::Trash)
-                    .label("Lixeira")
+                Button::new("trash").ghost().icon(IconName::Trash)
+                    .tooltip("Enviar para a Lixeira")
                     .disabled(self.selected.is_none())
                     .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx))),
             )
-            .content(div().w(px(1.)).h(px(22.)).bg(cx.theme().border))
+            .content(div().w(px(1.)).h(px(23.)).mx_2().bg(rgb(BORDER)))
             .child(
-                Button::new("sort")
-                    .icon(IconName::ArrowDownAZ)
-                    .label("Ordenar")
+                Button::new("sort").ghost().icon(IconName::ArrowDownAZ)
+                    .label("Classificar")
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.sort = this.sort.next();
                         this.reload(cx);
                     })),
             )
             .child(
-                Button::new("hidden")
-                    .icon(IconName::Eye)
+                Button::new("hidden").ghost().icon(IconName::Eye)
                     .label("Ocultos")
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.show_hidden = !this.show_hidden;
                         this.reload(cx);
                     })),
             )
+            .child(
+                Button::new("view").ghost().icon(IconName::LayoutGrid)
+                    .label("Exibir")
+                    .on_click(cx.listener(|this, _, _, cx| this.toggle_view(cx))),
+            )
             .content(div().flex_1())
-            .content(
-                div()
-                    .text_xs()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(format!("Por {}", self.sort.label())),
+            .child(
+                Button::new("details").ghost().icon(IconName::PanelRight)
+                    .label("Detalhes")
+                    .on_click(cx.listener(|this, _, _, cx| this.toggle_details(cx))),
             );
 
         if self.confirm_trash {
             bar = bar
                 .child(
-                    Button::new("confirm-trash")
-                        .icon(IconName::Check)
+                    Button::new("confirm-trash").icon(IconName::Check)
                         .label("Confirmar")
                         .on_click(cx.listener(|this, _, _, cx| this.confirm_trash(cx))),
                 )
                 .child(
-                    Button::new("cancel-trash")
-                        .icon(IconName::X)
+                    Button::new("cancel-trash").ghost().icon(IconName::X)
                         .label("Cancelar")
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.confirm_trash = false;
@@ -93,239 +160,139 @@ impl FilesApp {
         }
 
         div()
-            .h(px(54.))
-            .px_5()
+            .h(px(50.))
+            .px_4()
             .flex()
             .items_center()
             .border_b_1()
-            .border_color(cx.theme().border)
-            .bg(cx.theme().background)
+            .border_color(rgb(BORDER))
+            .bg(rgb(TOOLBAR_BG))
             .child(bar)
     }
 
-    // The navigation area uses the real GPUI Kit sidebar, not hand-painted rows.
     fn sidebar(&mut self, cx: &mut Context<Self>) -> Sidebar<SidebarGroup<SidebarMenu>> {
-        let locations = self
-            .shortcuts
-            .clone()
-            .into_iter()
-            .map(|(label, path)| {
-                let active = self.directory == path;
-                let icon = match label.as_str() {
-                    "Início" => IconName::House,
-                    "Área de Trabalho" => IconName::Monitor,
-                    "Documentos" => IconName::FileText,
-                    "Downloads" => IconName::Download,
-                    "Imagens" => IconName::Image,
-                    "Vídeos" => IconName::Clapperboard,
-                    "Músicas" => IconName::Music,
-                    text if text.starts_with("Disco") => IconName::HardDrive,
-                    _ => IconName::Folder,
-                };
-                SidebarMenuItem::new(label)
-                    .icon(icon)
-                    .active(active)
-                    .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
-            })
-            .collect::<Vec<_>>();
+        let locations = self.shortcuts.clone().into_iter().map(|(label, path)| {
+            let active = self.directory == path;
+            let icon = match label.as_str() {
+                "Início" => IconName::House,
+                "Área de Trabalho" => IconName::Monitor,
+                "Documentos" => IconName::FileText,
+                "Downloads" => IconName::Download,
+                "Imagens" => IconName::Image,
+                "Vídeos" => IconName::Clapperboard,
+                "Músicas" => IconName::Music,
+                text if text.starts_with("Disco") => IconName::HardDrive,
+                _ => IconName::Folder,
+            };
+            SidebarMenuItem::new(label)
+                .icon(icon)
+                .active(active)
+                .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+        }).collect::<Vec<_>>();
 
-        Sidebar::new("files-navigation")
-            .w(px(248.))
+        Sidebar::new("explorer-sidebar")
+            .w(px(236.))
             .header(
                 SidebarHeader::new().child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_3()
-                        .px_2()
-                        .child(Icon::new(IconName::FolderOpen).text_color(cx.theme().primary))
-                        .child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap_1()
-                                .child(
-                                    div()
-                                        .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                        .child("Biblioteca"),
-                                )
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child("Arquivos locais"),
-                                ),
-                        ),
+                    div().w_full().flex().items_center().gap_2().px_2()
+                        .child(Icon::new(IconName::House).text_color(cx.theme().primary))
+                        .child(div().font_weight(gpui_kit::FontWeight::SEMIBOLD).child("Início")),
                 ),
             )
-            .child(SidebarGroup::new("Acesso rápido").child(SidebarMenu::new().children(locations)))
+            .child(
+                SidebarGroup::new("ACESSO RÁPIDO")
+                    .child(SidebarMenu::new().children(locations)),
+            )
             .footer(
                 SidebarFooter::new().child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .text_xs()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(Icon::new(IconName::HardDrive).small())
-                        .child("Armazenamento local"),
+                    div().text_xs().text_color(cx.theme().muted_foreground)
+                        .child("Este computador"),
                 ),
             )
     }
 
-    // Explorer-style navigation and real editable search input.
     fn navigation(&mut self, cx: &mut Context<Self>) -> Div {
-        let mut segments = self
-            .directory
-            .ancestors()
+        let mut segments = self.directory.ancestors()
             .filter(|part| !part.as_os_str().is_empty())
             .map(Path::to_path_buf)
             .collect::<Vec<_>>();
         segments.reverse();
-        let crumbs = segments
-            .into_iter()
-            .enumerate()
-            .map(|(index, path)| {
-                let label = path
-                    .file_name()
-                    .map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| path.display().to_string());
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_1()
-                    .child(
-                        Icon::new(IconName::ChevronRight)
-                            .xsmall()
-                            .text_color(cx.theme().muted_foreground),
-                    )
-                    .child(
-                        div()
-                            .id(("breadcrumb", index))
-                            .px_2()
-                            .py_1()
-                            .rounded_md()
-                            .text_sm()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(cx.theme().accent))
-                            .child(label)
-                            .on_click(
-                                cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)),
-                            ),
-                    )
-            })
-            .collect::<Vec<_>>();
+        let crumbs = segments.into_iter().enumerate().map(|(index, path)| {
+            div()
+                .flex().items_center().gap_1()
+                .child(Icon::new(IconName::ChevronRight).xsmall()
+                    .text_color(cx.theme().muted_foreground))
+                .child(
+                    div().id(("breadcrumb", index))
+                        .px_2().py_1().rounded_sm()
+                        .text_sm().cursor_pointer()
+                        .hover(|style| style.bg(rgb(HOVER)))
+                        .child(display_name(&path))
+                        .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx))),
+                )
+        }).collect::<Vec<_>>();
 
-        div()
-            .h(px(64.))
-            .px_5()
-            .flex()
-            .items_center()
-            .gap_3()
-            .border_b_1()
-            .border_color(cx.theme().border)
+        div().h(px(60.)).px_4().flex().items_center().gap_3()
+            .bg(rgb(CANVAS)).border_b_1().border_color(rgb(BORDER))
             .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_1()
-                    .child(
-                        Button::new("nav-back")
-                            .ghost()
-                            .icon(IconName::ArrowLeft)
-                            .tooltip("Voltar (Alt+Esquerda)")
-                            .disabled(self.history_index == 0)
-                            .on_click(cx.listener(|this, _, _, cx| this.back(cx))),
-                    )
-                    .child(
-                        Button::new("nav-forward")
-                            .ghost()
-                            .icon(IconName::ArrowRight)
-                            .tooltip("Avançar (Alt+Direita)")
-                            .disabled(self.history_index + 1 == self.history.len())
-                            .on_click(cx.listener(|this, _, _, cx| this.forward(cx))),
-                    )
-                    .child(
-                        Button::new("nav-up")
-                            .ghost()
-                            .icon(IconName::ArrowUp)
-                            .tooltip("Pasta acima")
-                            .on_click(cx.listener(|this, _, _, cx| this.up(cx))),
-                    )
-                    .child(
-                        Button::new("nav-reload")
-                            .ghost()
-                            .icon(IconName::RefreshCw)
-                            .tooltip("Atualizar (F5)")
-                            .on_click(cx.listener(|this, _, _, cx| this.reload(cx))),
-                    ),
+                div().flex().items_center().gap_1()
+                    .child(Button::new("nav-back").ghost().icon(IconName::ArrowLeft)
+                        .tooltip("Voltar").disabled(self.history_index == 0)
+                        .on_click(cx.listener(|this, _, _, cx| this.back(cx))))
+                    .child(Button::new("nav-forward").ghost().icon(IconName::ArrowRight)
+                        .tooltip("Avançar").disabled(self.history_index + 1 >= self.history.len())
+                        .on_click(cx.listener(|this, _, _, cx| this.forward(cx))))
+                    .child(Button::new("nav-up").ghost().icon(IconName::ArrowUp)
+                        .tooltip("Subir")
+                        .on_click(cx.listener(|this, _, _, cx| this.up(cx))))
+                    .child(Button::new("nav-refresh").ghost().icon(IconName::RefreshCw)
+                        .tooltip("Atualizar")
+                        .on_click(cx.listener(|this, _, _, cx| this.reload(cx)))),
             )
             .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .h(px(36.))
-                    .px_2()
-                    .flex()
-                    .items_center()
-                    .gap_1()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(cx.theme().border)
-                    .bg(cx.theme().secondary)
+                div().flex_1().min_w_0().h(px(37.)).px_2()
+                    .flex().items_center().gap_1()
+                    .rounded_md().border_1().border_color(rgb(BORDER))
+                    .bg(rgb(TOOLBAR_BG))
                     .children(crumbs),
             )
             .child(
-                div().w(px(250.)).flex_shrink_0().child(
-                    Input::new(&self.search)
+                div().w(px(275.)).flex_shrink_0()
+                    .child(Input::new(&self.search)
                         .prefix(Icon::new(IconName::Search).small())
-                        .cleanable(true),
-                ),
+                        .cleanable(true)),
             )
     }
 
     fn file_list(&mut self, cx: &mut Context<Self>) -> Div {
         let query = self.search.read(cx).value().to_string().to_lowercase();
-        let visible: Vec<FileEntry> = self
-            .entries
-            .iter()
+        let visible = self.entries.iter()
             .filter(|entry| query.is_empty() || entry.name.to_lowercase().contains(&query))
-            .cloned()
-            .collect();
-        let mut list = div()
-            .id("file-scroller")
-            .flex_1()
-            .min_h_0()
-            .overflow_y_scroll()
-            .bg(cx.theme().background);
+            .cloned().collect::<Vec<_>>();
+        let tiles = self.view_mode == ViewMode::Tiles;
+        let mut list = div().id("explorer-file-scroller")
+            .flex_1().min_h_0().overflow_y_scroll().bg(rgb(CANVAS));
+        if tiles {
+            list = list.flex().flex_wrap().content_start().p_3();
+        }
 
         if visible.is_empty() {
-            let message = if query.is_empty() {
-                "Esta pasta está vazia"
-            } else {
-                "Nenhum resultado encontrado"
-            };
             list = list.child(
-                div()
-                    .flex_1()
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .justify_center()
+                div().h_full().w_full().flex().items_center().justify_center()
                     .child(
                         Empty::new().header(
                             EmptyHeader::new()
-                                .media(
-                                    EmptyMedia::new()
-                                        .with_variant(EmptyMediaVariant::Icon)
-                                        .child(Icon::new(IconName::FolderOpen)),
-                                )
-                                .title(EmptyTitle::new().child(message))
-                                .description(EmptyDescription::new().child(if query.is_empty() {
-                                    "Adicione arquivos ou crie uma pasta."
+                                .media(EmptyMedia::new()
+                                    .with_variant(EmptyMediaVariant::Icon)
+                                    .child(Icon::new(IconName::FolderOpen)))
+                                .title(EmptyTitle::new().child(if query.is_empty() {
+                                    "Esta pasta está vazia"
                                 } else {
-                                    "Tente pesquisar outro nome de arquivo."
-                                })),
+                                    "Nenhum resultado encontrado"
+                                }))
+                                .description(EmptyDescription::new().child(
+                                    "Os arquivos desta pasta aparecem aqui."
+                                )),
                         ),
                     ),
             );
@@ -333,78 +300,133 @@ impl FilesApp {
             for (index, entry) in visible.into_iter().enumerate() {
                 let selected = self.selected.as_ref() == Some(&entry.path);
                 let folder = entry.kind == EntryKind::Folder;
-                let symbol = if folder {
-                    IconName::Folder
-                } else if entry.kind == EntryKind::Symlink {
-                    IconName::Link
-                } else {
-                    IconName::File
-                };
-                let size = if folder {
-                    "—".to_owned()
-                } else {
-                    filesystem::display_size(entry.size)
+                let symbol = match entry.kind {
+                    EntryKind::Folder => IconName::Folder,
+                    EntryKind::Symlink => IconName::Link,
+                    EntryKind::File => {
+                        match entry.path.extension().and_then(|ext| ext.to_str()).unwrap_or("").to_ascii_lowercase().as_str() {
+                            "png" | "jpg" | "jpeg" | "gif" | "webp" => IconName::FileImage,
+                            "mp4" | "mkv" | "mov" => IconName::FileVideoCamera,
+                            "mp3" | "wav" | "flac" => IconName::FileMusic,
+                            "zip" | "7z" | "rar" => IconName::FileArchive,
+                            "rs" | "py" | "js" | "ts" | "go" => IconName::FileCode,
+                            _ => IconName::File,
+                        }
+                    }
                 };
                 let path = entry.path.clone();
-                list = list.child(
-                    div()
-                        .id(("file-row", index))
-                        .mx_3().my_0p5().px_4().h(px(43.))
-                        .flex().items_center().gap_3()
-                        .rounded_md().cursor_pointer()
-                        .text_sm()
-                        .bg(if selected { cx.theme().accent } else { cx.theme().background })
-                        .hover(|style| style.bg(cx.theme().accent))
-                        .child(
-                            Icon::new(symbol)
-                                .text_color(if folder { cx.theme().primary } else { cx.theme().muted_foreground }),
-                        )
-                        .child(div().flex_1().min_w_0().child(entry.name.clone()))
-                        .child(div().w(px(155.)).flex_shrink_0().text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(entry.kind_label()))
-                        .child(div().w(px(90.)).flex_shrink_0().text_right().text_xs()
-                            .text_color(cx.theme().muted_foreground).child(size))
-                        .on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
-                            if matches!(event, ClickEvent::Mouse(click) if click.up.click_count >= 2) {
-                                this.open_entry(path.clone(), cx);
-                            } else {
-                                this.selected = Some(path.clone());
-                                this.confirm_trash = false;
-                                cx.notify();
-                            }
-                        })),
-                );
+                if tiles {
+                    list = list.child(
+                        div().id(("tile", index))
+                            .w(px(155.)).h(px(120.)).m_1().p_3()
+                            .flex().flex_col().items_center().justify_center().gap_2()
+                            .rounded_md().cursor_pointer()
+                            .bg(rgb(if selected { SELECTED } else { CANVAS }))
+                            .hover(|style| style.bg(rgb(HOVER)))
+                            .child(Icon::new(symbol).large()
+                                .text_color(if folder { cx.theme().primary } else { cx.theme().muted_foreground }))
+                            .child(div().w_full().text_center().text_sm().text_color(rgb(TEXT))
+                                .overflow_hidden().child(entry.name.clone()))
+                            .on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
+                                if matches!(event, ClickEvent::Mouse(click) if click.up.click_count >= 2) {
+                                    this.open_entry(path.clone(), cx);
+                                } else {
+                                    this.selected = Some(path.clone());
+                                    this.confirm_trash = false;
+                                    cx.notify();
+                                }
+                            })),
+                    );
+                } else {
+                    let size = if folder { "—".to_owned() } else { filesystem::display_size(entry.size) };
+                    list = list.child(
+                        div().id(("file-row", index))
+                            .mx_2().h(px(36.)).px_3()
+                            .flex().items_center().gap_2().rounded_sm()
+                            .cursor_pointer().text_sm()
+                            .text_color(rgb(TEXT))
+                            .bg(rgb(if selected { SELECTED } else { CANVAS }))
+                            .hover(|style| style.bg(rgb(HOVER)))
+                            .child(Icon::new(symbol)
+                                .text_color(if folder { cx.theme().primary } else { cx.theme().muted_foreground }))
+                            .child(div().flex_1().min_w_0().child(entry.name.clone()))
+                            .child(div().w(px(162.)).text_xs().text_color(rgb(SECONDARY))
+                                .child(modified_date(&entry)))
+                            .child(div().w(px(112.)).text_xs().text_color(rgb(SECONDARY))
+                                .child(entry.kind_label()))
+                            .child(div().w(px(90.)).text_right().text_xs().text_color(rgb(SECONDARY))
+                                .child(size))
+                            .on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
+                                if matches!(event, ClickEvent::Mouse(click) if click.up.click_count >= 2) {
+                                    this.open_entry(path.clone(), cx);
+                                } else {
+                                    this.selected = Some(path.clone());
+                                    this.confirm_trash = false;
+                                    cx.notify();
+                                }
+                            })),
+                    );
+                }
             }
         }
 
-        div()
-            .flex_1()
-            .min_h_0()
-            .flex()
-            .flex_col()
-            .child(
-                div()
-                    .h(px(38.))
-                    .px_7()
-                    .flex()
-                    .items_center()
-                    .text_xs()
-                    .font_weight(gpui_kit::FontWeight::MEDIUM)
-                    .text_color(cx.theme().muted_foreground)
-                    .border_b_1()
-                    .border_color(cx.theme().border)
+        div().flex_1().min_h_0().flex().flex_col()
+            .when(!tiles, |this| this.child(
+                div().h(px(36.)).px_5().flex().items_center()
+                    .text_xs().font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(rgb(SECONDARY))
+                    .bg(rgb(TOOLBAR_BG))
+                    .border_b_1().border_color(rgb(BORDER))
                     .child(div().flex_1().child("Nome"))
-                    .child(div().w(px(155.)).child("Tipo"))
-                    .child(div().w(px(90.)).text_right().child("Tamanho")),
-            )
+                    .child(div().w(px(162.)).child("Data de modificação"))
+                    .child(div().w(px(112.)).child("Tipo"))
+                    .child(div().w(px(90.)).text_right().child("Tamanho"))
+            ))
             .child(list)
     }
+
+    fn details_panel(&mut self, cx: &mut Context<Self>) -> Div {
+        let item = self.selected.as_ref().and_then(|path| {
+            self.entries.iter().find(|entry| &entry.path == path).cloned()
+        });
+        let mut panel = div()
+            .w(px(258.)).h_full().flex_shrink_0()
+            .p_4().flex().flex_col().gap_4()
+            .border_l_1().border_color(rgb(BORDER))
+            .bg(rgb(SIDEBAR_BG))
+            .child(
+                div().font_weight(gpui_kit::FontWeight::SEMIBOLD).text_color(rgb(TEXT))
+                    .child("Detalhes"),
+            );
+
+        if let Some(entry) = item {
+            let icon = if entry.kind == EntryKind::Folder { IconName::FolderOpen } else { IconName::File };
+            panel = panel
+                .child(div().pt_5().flex().justify_center()
+                    .child(Icon::new(icon).text_color(cx.theme().primary).large()))
+                .child(div().text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(rgb(TEXT)).child(entry.name))
+                .child(div().text_xs().text_color(rgb(SECONDARY))
+                    .child(format!("Tipo: {}", entry.kind_label())))
+                .child(div().text_xs().text_color(rgb(SECONDARY))
+                    .child(format!("Tamanho: {}", filesystem::display_size(entry.size))))
+                .child(div().text_xs().text_color(rgb(SECONDARY))
+                    .child(format!("Modificado: {}", modified_date(&entry))));
+        } else {
+            panel = panel
+                .child(div().pt_8().flex().justify_center()
+                    .child(Icon::new(IconName::FileSearch).large()
+                        .text_color(cx.theme().muted_foreground)))
+                .child(div().text_sm().text_center().text_color(rgb(SECONDARY))
+                    .child("Selecione um item para ver seus detalhes."));
+        }
+        panel
+    }
 }
+
 impl Render for FilesApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .id("files-root")
+        div().id("files-root")
             .track_focus(&self.focus)
             .on_action(cx.listener(|this, _: &Back, _, cx| this.back(cx)))
             .on_action(cx.listener(|this, _: &Forward, _, cx| this.forward(cx)))
@@ -423,101 +445,52 @@ impl Render for FilesApp {
                 this.show_hidden = !this.show_hidden;
                 this.reload(cx);
             }))
-            .size_full()
-            .flex()
-            .flex_col()
-            .bg(cx.theme().background)
-            .text_color(cx.theme().foreground)
+            .on_action(cx.listener(|this, _: &NewTab, _, cx| this.new_tab(cx)))
+            .on_action(cx.listener(|this, _: &CloseTab, _, cx| this.close_tab(cx)))
+            .on_action(cx.listener(|this, _: &ToggleDetails, _, cx| this.toggle_details(cx)))
+            .on_action(cx.listener(|this, _: &ToggleView, _, cx| this.toggle_view(cx)))
+            .size_full().flex().flex_col()
+            .bg(rgb(CANVAS)).text_color(rgb(TEXT))
             .child(
                 TitleBar::new().child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_3()
-                        .pl_3()
+                    div().flex().items_center().gap_3().pl_3()
                         .child(Icon::new(IconName::FolderOpen).text_color(cx.theme().primary))
-                        .child(
-                            div()
-                                .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                .child("Files"),
-                        )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(cx.theme().muted_foreground)
-                                .child("Gerenciador de arquivos"),
-                        ),
+                        .child(div().font_weight(gpui_kit::FontWeight::SEMIBOLD).child("Files"))
+                        .child(div().text_xs().text_color(rgb(SECONDARY))
+                            .child("Explorador de Arquivos")),
                 ),
             )
+            .child(self.tab_strip(cx))
             .child(self.navigation(cx))
             .child(self.toolbar(cx))
             .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
+                div().flex_1().min_h_0().flex().bg(rgb(CANVAS))
                     .child(self.sidebar(cx))
                     .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .flex()
-                            .flex_col()
+                        div().flex_1().min_w_0().flex().flex_col()
                             .child(
-                                div()
-                                    .px_6()
-                                    .h(px(56.))
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .flex_col()
-                                            .gap_1()
-                                            .child(
-                                                div()
-                                                    .text_base()
-                                                    .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                                    .child(
-                                                        self.directory
-                                                            .file_name()
-                                                            .map(|s| {
-                                                                s.to_string_lossy().into_owned()
-                                                            })
-                                                            .unwrap_or_else(|| {
-                                                                self.directory.display().to_string()
-                                                            }),
-                                                    ),
-                                            )
-                                            .child(
-                                                div()
-                                                    .text_xs()
-                                                    .text_color(cx.theme().muted_foreground)
-                                                    .child(format!(
-                                                        "{} itens nesta pasta",
-                                                        self.entries.len()
-                                                    )),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_xs()
-                                            .text_color(cx.theme().muted_foreground)
-                                            .child(format!("Ordenar: {}", self.sort.label())),
-                                    ),
+                                div().h(px(48.)).px_5().flex().items_center().justify_between()
+                                    .bg(rgb(CANVAS))
+                                    .child(div().text_base()
+                                        .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                        .child(display_name(&self.directory)))
+                                    .child(div().text_xs().text_color(rgb(SECONDARY))
+                                        .child(format!("{} itens", self.entries.len()))),
                             )
                             .child(self.file_list(cx)),
-                    ),
+                    )
+                    .when(self.details_open, |this| this.child(self.details_panel(cx))),
             )
             .child(
-                StatusBar::new()
-                    .left(self.status.clone())
-                    .right(if self.selected.is_some() {
-                        "1 item selecionado"
-                    } else {
-                        "Nenhum item selecionado"
-                    }),
+                div().bg(rgb(WINDOW_BG)).child(
+                    StatusBar::new()
+                        .left(self.status.clone())
+                        .right(if self.selected.is_some() {
+                            "1 item selecionado"
+                        } else {
+                            "Nenhum item selecionado"
+                        }),
+                ),
             )
     }
 }
