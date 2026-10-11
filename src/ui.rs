@@ -83,7 +83,7 @@ impl FilesApp {
     }
 
     // The navigation area uses the real GPUI Kit sidebar, not hand-painted rows.
-    fn sidebar(&mut self, cx: &mut Context<Self>) -> Sidebar {
+    fn sidebar(&mut self, cx: &mut Context<Self>) -> Sidebar<SidebarGroup<SidebarMenu>> {
         let locations = self.shortcuts.clone().into_iter().map(|(label, path)| {
             let active = self.directory == path;
             let icon = match label.as_str() {
