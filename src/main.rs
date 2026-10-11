@@ -376,7 +376,7 @@ impl FilesApp {
                 .icon(icon)
                 .active(active)
                 .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
-        });
+        }).collect::<Vec<_>>();
 
         Sidebar::new()
             .width(248)
@@ -435,7 +435,7 @@ impl FilesApp {
                         .child(label)
                         .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx))),
                 )
-        });
+        }).collect::<Vec<_>>();
 
         div()
             .h(px(64.))
