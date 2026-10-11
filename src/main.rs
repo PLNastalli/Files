@@ -29,6 +29,13 @@ enum ViewMode {
     Tiles,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RibbonPage {
+    Home,
+    View,
+    Themes,
+}
+
 actions!(
     files,
     [
@@ -62,6 +69,8 @@ struct FilesApp {
     active_tab: usize,
     details_open: bool,
     view_mode: ViewMode,
+    ribbon_page: RibbonPage,
+    show_navigation: bool,
     show_row_numbers: bool,
     selected: Option<PathBuf>,
     selected_paths: Vec<PathBuf>,
@@ -131,6 +140,8 @@ impl FilesApp {
             active_tab: 0,
             details_open: false,
             view_mode: ViewMode::Details,
+            ribbon_page: RibbonPage::Home,
+            show_navigation: true,
             show_row_numbers: false,
             selected: None,
             selected_paths: Vec::new(),
@@ -311,6 +322,45 @@ impl FilesApp {
 
     fn toggle_details(&mut self, cx: &mut Context<Self>) {
         self.details_open = !self.details_open;
+        cx.notify();
+    }
+
+    fn show_ribbon(&mut self, page: RibbonPage, cx: &mut Context<Self>) {
+        self.ribbon_page = page;
+        cx.notify();
+    }
+
+    fn set_view_mode(&mut self, mode: ViewMode, cx: &mut Context<Self>) {
+        self.view_mode = mode;
+        cx.notify();
+    }
+
+    fn toggle_navigation(&mut self, cx: &mut Context<Self>) {
+        self.show_navigation = !self.show_navigation;
+        cx.notify();
+    }
+
+    fn select_all(&mut self, cx: &mut Context<Self>) {
+        self.selected_paths = self.entries.iter().map(|entry| entry.path.clone()).collect();
+        self.selected = self.selected_paths.last().cloned();
+        cx.notify();
+    }
+
+    fn clear_selection(&mut self, cx: &mut Context<Self>) {
+        self.selected = None;
+        self.selected_paths.clear();
+        cx.notify();
+    }
+
+    fn invert_selection(&mut self, cx: &mut Context<Self>) {
+        let mut selected = Vec::new();
+        for entry in &self.entries {
+            if !self.selected_paths.contains(&entry.path) {
+                selected.push(entry.path.clone());
+            }
+        }
+        self.selected = selected.last().cloned();
+        self.selected_paths = selected;
         cx.notify();
     }
 
