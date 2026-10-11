@@ -9,7 +9,7 @@ use std::{
 
 use files::{
     filesystem::{self, FileEntry, SortBy},
-    operations, shortcuts,
+    operations, preview, shortcuts,
 };
 use gpui_kit::component::{
     Theme, ThemeMode, TitleBar,
@@ -52,6 +52,7 @@ actions!(
         NewTab,
         CloseTab,
         ToggleDetails,
+        TogglePreview,
         ToggleView,
         Cut,
         Rename,
@@ -72,6 +73,10 @@ struct FilesApp {
     tabs: Vec<PathBuf>,
     active_tab: usize,
     details_open: bool,
+    preview_open: bool,
+    preview_file: Option<PathBuf>,
+    preview_data: Option<preview::PreviewData>,
+    preview_task: Option<gpui_kit::Task<()>>,
     view_mode: ViewMode,
     ribbon_page: RibbonPage,
     show_navigation: bool,
@@ -158,6 +163,10 @@ impl FilesApp {
             tabs: vec![result_path.clone()],
             active_tab: 0,
             details_open: false,
+            preview_open: false,
+            preview_file: None,
+            preview_data: None,
+            preview_task: None,
             view_mode: ViewMode::Details,
             ribbon_page: RibbonPage::Home,
             show_navigation: true,
@@ -283,6 +292,9 @@ impl FilesApp {
         self.selected = None;
         self.confirm_trash = false;
         self.rename_target = None;
+        self.preview_file = None;
+        self.preview_data = None;
+        self.preview_task = None;
         self.reload(cx);
         self.watch_directory();
     }
@@ -343,6 +355,50 @@ impl FilesApp {
     fn toggle_details(&mut self, cx: &mut Context<Self>) {
         self.details_open = !self.details_open;
         cx.notify();
+    }
+
+    fn toggle_preview(&mut self, cx: &mut Context<Self>) {
+        self.preview_open = !self.preview_open;
+        if self.preview_open {
+            self.refresh_preview(cx);
+        } else {
+            self.preview_task = None;
+            self.preview_file = None;
+            self.preview_data = None;
+            cx.notify();
+        }
+    }
+
+    fn refresh_preview(&mut self, cx: &mut Context<Self>) {
+        if !self.preview_open {
+            return;
+        }
+        self.preview_task = None;
+        self.preview_data = None;
+        let Some(path) = self.selected.clone() else {
+            self.preview_file = None;
+            cx.notify();
+            return;
+        };
+        self.preview_file = Some(path.clone());
+        cx.notify();
+
+        self.preview_task = Some(cx.spawn(async move |view, cx| {
+            let requested = path.clone();
+            let result = cx
+                .background_spawn(async move { preview::read_preview(&path) })
+                .await;
+            _ = view.update(cx, |this, cx| {
+                if this.preview_open && this.preview_file.as_ref() == Some(&requested) {
+                    this.preview_data = Some(result.unwrap_or_else(|error| {
+                        preview::PreviewData::Unsupported(format!(
+                            "Não foi possível visualizar: {error}"
+                        ))
+                    }));
+                    cx.notify();
+                }
+            });
+        }));
     }
 
     fn show_ribbon(&mut self, page: RibbonPage, cx: &mut Context<Self>) {
@@ -439,12 +495,14 @@ impl FilesApp {
             .map(|entry| entry.path.clone())
             .collect();
         self.selected = self.selected_paths.last().cloned();
+        self.refresh_preview(cx);
         cx.notify();
     }
 
     fn clear_selection(&mut self, cx: &mut Context<Self>) {
         self.selected = None;
         self.selected_paths.clear();
+        self.refresh_preview(cx);
         cx.notify();
     }
 
@@ -457,6 +515,7 @@ impl FilesApp {
         }
         self.selected = selected.last().cloned();
         self.selected_paths = selected;
+        self.refresh_preview(cx);
         cx.notify();
     }
 
@@ -486,6 +545,7 @@ impl FilesApp {
         }
         self.selected = self.selected_paths.last().cloned();
         self.confirm_trash = false;
+        self.refresh_preview(cx);
         cx.notify();
     }
 
@@ -737,6 +797,7 @@ fn main() {
                 KeyBinding::new("ctrl-t", NewTab, None),
                 KeyBinding::new("ctrl-w", CloseTab, None),
                 KeyBinding::new("alt-shift-p", ToggleDetails, None),
+                KeyBinding::new("ctrl-shift-p", TogglePreview, None),
                 KeyBinding::new("ctrl-shift-1", ToggleView, None),
             ]);
 
