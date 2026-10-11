@@ -13,7 +13,7 @@ use gpui_kit::component::{
     menu::{ContextMenuExt as _, PopupMenu, PopupMenuItem},
     status_bar::StatusBar,
 };
-use gpui_kit::{ClickEvent, Div, ObjectFit, Render, Stateful, div, img, prelude::*, rgb};
+use gpui_kit::{ClickEvent, Div, MouseButton, ObjectFit, Render, Stateful, div, img, prelude::*, rgb};
 use std::path::Path;
 
 // Win11System is the reference application's default. These are approximations
@@ -1140,6 +1140,7 @@ impl FilesApp {
                     }
                 };
                 let path = entry.path.clone();
+                let middle_click_path = path.clone();
                 let context_path = path.clone();
                 let context_view = view.clone();
                 let pinned = self.pinned.contains(&path);
@@ -1163,6 +1164,12 @@ impl FilesApp {
                                     this.select_entry(path.clone(), additive, cx);
                                 }
                             }))
+                            .when(folder, |this| this.on_mouse_down(
+                                MouseButton::Middle,
+                                cx.listener(move |this, _, _, cx| {
+                                    this.open_in_new_tab(middle_click_path.clone(), cx);
+                                }),
+                            ))
                             .context_menu(move |menu, window, _| {
                                 file_context_menu(menu, window, &context_view, context_path.clone(), folder, pinned)
                             }),
@@ -1203,6 +1210,12 @@ impl FilesApp {
                                     this.select_entry(path.clone(), additive, cx);
                                 }
                             }))
+                            .when(folder, |this| this.on_mouse_down(
+                                MouseButton::Middle,
+                                cx.listener(move |this, _, _, cx| {
+                                    this.open_in_new_tab(middle_click_path.clone(), cx);
+                                }),
+                            ))
                             .context_menu(move |menu, window, _| {
                                 file_context_menu(menu, window, &context_view, context_path.clone(), folder, pinned)
                             }),
