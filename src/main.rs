@@ -8,9 +8,20 @@ use std::{
 };
 
 use files::filesystem::{self, EntryKind, FileEntry, SortBy};
-use gpui::{
-    App, Bounds, ClickEvent, Context, Div, FocusHandle, KeyBinding, Render, Stateful, Window,
-    WindowBounds, WindowOptions, actions, div, prelude::*, px, rgb, size,
+use gpui_kit::{
+    App, Bounds, ClickEvent, Context, Div, Entity, FocusHandle, KeyBinding, Render, Stateful,
+    Subscription, Window, WindowBounds, WindowOptions, actions, div, prelude::*, px, size,
+};
+use gpui_kit::assets::IconName;
+use gpui_kit::component::{
+    ActiveTheme as _, Disableable as _, Sizable as _, Theme, ThemeMode, Icon,
+    button::{Button, ButtonVariants as _},
+    empty::{Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle},
+    input::{Input, InputEvent, InputState},
+    sidebar::{Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
+    status_bar::StatusBar,
+    toolbar::Toolbar,
+    TitleBar,
 };
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 
@@ -18,36 +29,6 @@ actions!(
     files,
     [Back, Forward, Up, Refresh, NewFolder, Copy, Paste, Delete, OpenSelected, ToggleHidden]
 );
-
-const BG: u32 = 0x0D1119;
-const PANEL: u32 = 0x131925;
-const SIDEBAR: u32 = 0x111722;
-const BORDER: u32 = 0x283244;
-const TEXT: u32 = 0xE6EDF7;
-const MUTED: u32 = 0x93A0B3;
-const ACCENT: u32 = 0x769DFF;
-const HOVER: u32 = 0x263249;
-const SELECTED: u32 = 0x263D65;
-const DANGER: u32 = 0xEF7777;
-
-fn button(id: &'static str, label: &'static str) -> Stateful<Div> {
-    div()
-        .id(id)
-        .h(px(34.))
-        .px_3()
-        .rounded_md()
-        .flex()
-        .items_center()
-        .justify_center()
-        .text_sm()
-        .text_color(rgb(TEXT))
-        .bg(rgb(PANEL))
-        .border_1()
-        .border_color(rgb(BORDER))
-        .cursor_pointer()
-        .hover(|element| element.bg(rgb(HOVER)))
-        .child(label)
-}
 
 struct FilesApp {
     directory: PathBuf,
@@ -61,6 +42,8 @@ struct FilesApp {
     confirm_trash: bool,
     status: String,
     focus: FocusHandle,
+    search: Entity<InputState>,
+    _search_events: Subscription,
     watcher: Option<RecommendedWatcher>,
     change_rx: Option<Receiver<notify::Result<Event>>>,
     shortcuts: Vec<(String, PathBuf)>,
@@ -95,6 +78,12 @@ impl FilesApp {
 
         let focus = cx.focus_handle();
         window.focus(&focus, cx);
+        let search = cx.new(|cx| InputState::new(window, cx).placeholder("Pesquisar nesta pasta"));
+        let search_events = cx.subscribe_in(&search, window, |_, _, event: &InputEvent, _, cx| {
+            if matches!(event, InputEvent::Change) {
+                cx.notify();
+            }
+        });
 
         let mut result = Self {
             directory: home.clone(),
@@ -108,6 +97,8 @@ impl FilesApp {
             confirm_trash: false,
             status: "Pronto".to_string(),
             focus,
+            search,
+            _search_events: search_events,
             watcher: None,
             change_rx: None,
             shortcuts,
