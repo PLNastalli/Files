@@ -18,12 +18,14 @@ Files is an experimental GPU-rendered desktop file manager that combines an Expl
 | Navigation | Home and common-folder shortcuts, local drives, breadcrumbs, Back, Forward, Up, Refresh |
 | Directory listing | Name/size/modified ordering, folders first, optional hidden entries |
 | Search | Case-insensitive filter of the **current directory only**; no recursive index |
-| File handling | Open with default OS application, create folder, select, copy/paste, move to OS trash with confirmation |
+| Explorer-like UI | Windows 11-inspired light palette, tabs, Details/Tiles views, optional metadata panel |
+| File handling | Open, create folder, rename one item, copy, cut/move on the same volume, recycle bin |
+| Export | Current directory listing to non-overwriting CSV (UTF-8 BOM; spreadsheet formula prefixes sanitized) |
 | Live updates | `notify` watches the current directory (non-recursive) |
-| Background work | A single background copy operation at a time; no progress or cancellation yet |
+| Background work | One copy, move or CSV export task at a time; no progress or cancellation yet |
 | Tests | Isolated filesystem unit/regression tests; Windows CI |
 
-**Not implemented:** tabs, grid thumbnails, drag-and-drop, cut/move, rename, indexed search, multi-selection, undo, copy progress/cancellation and robust recovery after partial transfers.
+**Not implemented:** virtualized tree, real thumbnails and content previews, drag-and-drop, cross-volume cut/move, batch rename, indexed search, multi-selection, undo, copy progress/cancellation and robust recovery after partial transfers. See the [feature-parity tracker](docs/FEATURE_PARITY.md) for the full comparison with the reference app.
 
 ## Getting started
 
@@ -59,6 +61,12 @@ First builds may take several minutes because the GPUI UI toolkit has substantia
 | F5 | Refresh |
 | Ctrl + Shift + N | Create a folder |
 | Ctrl + C / Ctrl + V | Copy selected item / Paste into current folder |
+| Ctrl + X | Cut selected item for same-volume move |
+| F2 | Open rename editor for selected item |
+| Ctrl + Shift + E | Export current folder listing as CSV |
+| Ctrl + T / Ctrl + W | Open a new tab / Close active tab |
+| Ctrl + Shift + 1 | Switch between Details and Tiles |
+| Alt + Shift + P | Toggle metadata details panel |
 | Enter | Open selected item |
 | Delete | Ask before sending selected item to Trash |
 | Ctrl + H | Toggle hidden files |
@@ -74,6 +82,7 @@ src/
 ├── main.rs         # Application state, navigation, watcher and task lifecycle
 ├── ui.rs           # GPUI Kit rendering and input controls
 ├── filesystem.rs   # Directory reads, sorting, safe-copy helpers and regression tests
+├── operations.rs   # Windows-first rename/move/CSV mutation helpers and tests
 └── lib.rs          # Filesystem module exposed to the test target
 ```
 
@@ -85,6 +94,7 @@ src/
 | `trash` | Operating-system recycle bin integration |
 | `dirs` | User home directory |
 | `open` | Opening files through their associated application |
+| `chrono` | Formatting file modification times in the UI |
 
 **Behavioral boundaries:** the UI schedules copying on the GPUI background executor; the `filesystem` module contains the copy algorithm. No GUI dependency is required for filesystem unit tests.
 
@@ -114,14 +124,14 @@ cargo test --all-targets
 cargo build --release
 ```
 
-The [Windows workflow](.github/workflows/ci.yml) is the source of truth for automated results; a green check does **not** prove runtime correctness or file operation safety. Manual Windows UI and filesystem tests remain necessary.
+The [feature-parity tracker](docs/FEATURE_PARITY.md) records which reference FileExplorer features still need engineering. The [Windows workflow](.github/workflows/ci.yml) is the source of truth for automated results; a green check does **not** prove runtime correctness or file operation safety. Manual Windows UI and filesystem tests remain necessary.
 
 ## Roadmap
 
 1. **Stability:** passing CI, manual Windows smoke tests, reliable error presentation, basic accessibility.
-2. **File operations:** progress and cancellation, reliable staging/recovery, rename/move, multi-selection and undo.
+2. **File operations:** progress and cancellation, reliable staging/recovery, batch rename, multi-selection and undo.
 3. **Scale:** async directory scanning, list virtualization, bounded thumbnail cache, indexed search.
-4. **Experience:** tabs, previews, keyboard navigation, configurable appearance and polish.
+4. **Experience:** previews, better per-tab navigation, keyboard navigation, configurable appearance and polish.
 
 ## Contributing
 
