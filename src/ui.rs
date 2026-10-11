@@ -1239,6 +1239,18 @@ impl Render for FilesApp {
             .on_action(cx.listener(|this, _: &Rename, window, cx| this.begin_rename(window, cx)))
             .on_action(cx.listener(|this, _: &ExportCsv, _, cx| this.export_listing(cx)))
             .on_action(cx.listener(|this, _: &ToggleRowNumbers, _, cx| this.toggle_row_numbers(cx)))
+            .on_action(cx.listener(|this, _: &SelectAll, _, cx| this.select_all(cx)))
+            .on_action(cx.listener(|this, _: &ClearSelection, _, cx| this.clear_selection(cx)))
+            .on_action(cx.listener(|this, _: &ShowProperties, _, cx| {
+                if let Some(path) = this.selected.clone() {
+                    this.show_properties(path, cx);
+                }
+            }))
+            .on_action(cx.listener(|this, _: &OpenInNewTab, _, cx| {
+                if let Some(path) = this.selected.clone() {
+                    this.open_in_new_tab(path, cx);
+                }
+            }))
             .on_action(cx.listener(|this, _: &Delete, _, cx| this.request_trash(cx)))
             .on_action(cx.listener(|this, _: &OpenSelected, _, cx| {
                 if let Some(path) = this.selected.clone() {
