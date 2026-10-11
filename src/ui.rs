@@ -103,55 +103,64 @@ impl FilesApp {
     // The reference DXTabbedWindow has per-tab close buttons and contiguous,
     // flat folder tabs, unlike the generic GPUI Kit outline TabBar.
     fn tab_strip(&mut self, cx: &mut Context<Self>) -> Div {
-        let tabs = self.tabs.clone().into_iter().enumerate().map(|(index, path)| {
-            let active = self.active_tab == index;
-            let tab_label = display_name(&path);
-            div()
-                .id(("explorer-tab", index))
-                .w(px(196.))
-                .h(px(36.))
-                .flex_shrink_0()
-                .px_2()
-                .flex()
-                .items_center()
-                .gap_2()
-                .rounded_md()
-                .border_1()
-                .border_color(rgb(if active { BORDER } else { WINDOW_BG }))
-                .bg(rgb(if active { CANVAS } else { WINDOW_BG }))
-                .child(
-                    div()
-                        .id(("explorer-tab-label", index))
-                        .flex_1()
-                        .min_w_0()
-                        .h_full()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .cursor_pointer()
-                        .text_sm()
-                        .text_color(rgb(TEXT))
-                        .child(Icon::new(IconName::Folder).small()
-                            .text_color(rgb(0xD69E42)))
-                        .child(div().flex_1().overflow_hidden().child(tab_label))
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.select_tab(index, cx);
-                        })),
-                )
-                .child(
-                    Button::new(format!("close-folder-tab-{index}"))
-                        .ghost()
-                        .icon(IconName::X)
-                        .disabled(self.tabs.len() <= 1)
-                        .tooltip("Fechar aba")
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            if this.tabs.len() > 1 {
+        let tabs = self
+            .tabs
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(index, path)| {
+                let active = self.active_tab == index;
+                let tab_label = display_name(&path);
+                div()
+                    .id(("explorer-tab", index))
+                    .w(px(196.))
+                    .h(px(36.))
+                    .flex_shrink_0()
+                    .px_2()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(rgb(if active { BORDER } else { WINDOW_BG }))
+                    .bg(rgb(if active { CANVAS } else { WINDOW_BG }))
+                    .child(
+                        div()
+                            .id(("explorer-tab-label", index))
+                            .flex_1()
+                            .min_w_0()
+                            .h_full()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .cursor_pointer()
+                            .text_sm()
+                            .text_color(rgb(TEXT))
+                            .child(
+                                Icon::new(IconName::Folder)
+                                    .small()
+                                    .text_color(rgb(0xD69E42)),
+                            )
+                            .child(div().flex_1().overflow_hidden().child(tab_label))
+                            .on_click(cx.listener(move |this, _, _, cx| {
                                 this.select_tab(index, cx);
-                                this.close_tab(cx);
-                            }
-                        })),
-                )
-        }).collect::<Vec<_>>();
+                            })),
+                    )
+                    .child(
+                        Button::new(format!("close-folder-tab-{index}"))
+                            .ghost()
+                            .icon(IconName::X)
+                            .disabled(self.tabs.len() <= 1)
+                            .tooltip("Fechar aba")
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                if this.tabs.len() > 1 {
+                                    this.select_tab(index, cx);
+                                    this.close_tab(cx);
+                                }
+                            })),
+                    )
+            })
+            .collect::<Vec<_>>();
 
         div()
             .h(px(42.))
