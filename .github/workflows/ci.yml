@@ -20,7 +20,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Cache
         uses: Swatinem/rust-cache@v2
-      - name: Test filesystem core
-        run: cargo test --lib
       - name: Check desktop application
         run: cargo check --bin files
+      - name: Test filesystem core
+        run: cargo test --lib
