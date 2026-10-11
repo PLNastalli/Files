@@ -509,9 +509,6 @@ impl FilesApp {
                             .rounded_md().cursor_pointer()
                             .bg(rgb(if selected { SELECTED } else { CANVAS }))
                             .hover(|style| style.bg(rgb(HOVER)))
-                            .when(self.show_row_numbers, |this| {
-                                this.child(div().w(px(36.)).text_xs().text_color(rgb(SECONDARY)).child((index + 1).to_string()))
-                            })
                             .child(Icon::new(symbol).large()
                                 .text_color(if folder { cx.theme().primary } else { cx.theme().muted_foreground }))
                             .child(div().w_full().text_center().text_sm().text_color(rgb(TEXT))
@@ -539,6 +536,9 @@ impl FilesApp {
                             .text_color(rgb(TEXT))
                             .bg(rgb(if selected { SELECTED } else { CANVAS }))
                             .hover(|style| style.bg(rgb(HOVER)))
+                            .when(self.show_row_numbers, |this| {
+                                this.child(div().w(px(36.)).text_xs().text_color(rgb(SECONDARY)).child((index + 1).to_string()))
+                            })
                             .child(Icon::new(symbol)
                                 .text_color(if folder { cx.theme().primary } else { cx.theme().muted_foreground }))
                             .child(div().flex_1().min_w_0().child(entry.name.clone()))
