@@ -26,7 +26,7 @@ pub fn load(path: &Path) -> io::Result<Vec<PathBuf>> {
     let mut seen = HashSet::new();
     Ok(contents
         .lines()
-        .map(str::trim)
+        .map(|line| line.trim_end_matches('\r'))
         .filter(|text| !text.is_empty())
         .map(PathBuf::from)
         .filter(|path| path.is_dir())
@@ -48,7 +48,7 @@ pub fn save(path: &Path, pins: &[PathBuf]) -> io::Result<()> {
         let path = pinned.to_str().ok_or_else(|| {
             io::Error::new(ErrorKind::InvalidData, "Caminho não é texto Unicode")
         })?;
-        if path.contains(['\n', '\r']) {
+        if path.contains('\n') || path.contains('\r') {
             return Err(io::Error::new(ErrorKind::InvalidData, "Caminho contém quebra de linha"));
         }
         contents.push_str(path);
