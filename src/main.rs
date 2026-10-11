@@ -7,7 +7,10 @@ use std::{
     time::Duration,
 };
 
-use files::{filesystem::{self, FileEntry, SortBy}, operations};
+use files::{
+    filesystem::{self, FileEntry, SortBy},
+    operations,
+};
 use gpui_kit::component::{
     Theme, ThemeMode, TitleBar,
     input::{InputEvent, InputState},
@@ -107,7 +110,8 @@ impl FilesApp {
         let focus = cx.focus_handle();
         window.focus(&focus, cx);
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("Pesquisar nesta pasta"));
-        let rename_input = cx.new(|cx| InputState::new(window, cx).placeholder("Novo nome do arquivo"));
+        let rename_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Novo nome do arquivo"));
         let search_events = cx.subscribe_in(&search, window, |_, _, event: &InputEvent, _, cx| {
             if matches!(event, InputEvent::Change) {
                 cx.notify();
@@ -399,9 +403,9 @@ impl FilesApp {
         self.status = "Exportando lista CSV...".to_owned();
         cx.notify();
         self.transfer_task = Some(cx.spawn(async move |view, cx| {
-            let result = cx.background_spawn(async move {
-                operations::export_csv(&directory, &snapshot)
-            }).await;
+            let result = cx
+                .background_spawn(async move { operations::export_csv(&directory, &snapshot) })
+                .await;
             _ = view.update(cx, |this, cx| {
                 this.transfer_in_progress = false;
                 match result {
@@ -435,15 +439,13 @@ impl FilesApp {
         self.transfer_task = Some(cx.spawn(async move |view, cx| {
             let destination_for_copy = destination.clone();
             let result = cx
-                .background_spawn(
-                    async move {
-                        if cut {
-                            operations::move_into(&source, &destination_for_copy)
-                        } else {
-                            filesystem::copy_into(&source, &destination_for_copy)
-                        }
-                    },
-                )
+                .background_spawn(async move {
+                    if cut {
+                        operations::move_into(&source, &destination_for_copy)
+                    } else {
+                        filesystem::copy_into(&source, &destination_for_copy)
+                    }
+                })
                 .await;
             _ = view.update(cx, |this, cx| {
                 this.transfer_in_progress = false;
@@ -457,7 +459,12 @@ impl FilesApp {
                             this.reload(cx);
                             this.selected = Some(path);
                         }
-                        this.status = if cut { "Movimentação concluída" } else { "Cópia concluída" }.to_owned();
+                        this.status = if cut {
+                            "Movimentação concluída"
+                        } else {
+                            "Cópia concluída"
+                        }
+                        .to_owned();
                         cx.notify();
                     }
                     Err(error) => this.report_error("Copiar", error, cx),

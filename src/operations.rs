@@ -16,19 +16,36 @@ use crate::filesystem::{self, EntryKind, FileEntry};
 /// Validate a single Windows-compatible file name rather than a path.
 pub fn validate_name(name: &str) -> io::Result<()> {
     if name.is_empty() || name == "." || name == ".." || name.trim() != name {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "Nome de arquivo inválido"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Nome de arquivo inválido",
+        ));
     }
-    if name.ends_with('.') || name.chars().any(|c| {
-        c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
-    }) {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "O nome contém caracteres proibidos"));
+    if name.ends_with('.')
+        || name.chars().any(|c| {
+            c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
+        })
+    {
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "O nome contém caracteres proibidos",
+        ));
     }
-    let base = name.split('.').next().unwrap_or("").trim_end_matches(' ').to_ascii_uppercase();
+    let base = name
+        .split('.')
+        .next()
+        .unwrap_or("")
+        .trim_end_matches(' ')
+        .to_ascii_uppercase();
     if matches!(base.as_str(), "CON" | "PRN" | "AUX" | "NUL")
-        || (base.len() == 4 && (base.starts_with("COM") || base.starts_with("LPT"))
+        || (base.len() == 4
+            && (base.starts_with("COM") || base.starts_with("LPT"))
             && matches!(base.as_bytes()[3], b'1'..=b'9'))
     {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "Nome reservado pelo Windows"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Nome reservado pelo Windows",
+        ));
     }
     Ok(())
 }
@@ -39,15 +56,18 @@ pub fn validate_name(name: &str) -> io::Result<()> {
 pub fn rename_item(source: &Path, new_name: &str) -> io::Result<PathBuf> {
     validate_name(new_name)?;
     fs::symlink_metadata(source)?;
-    let parent = source.parent().ok_or_else(|| {
-        io::Error::new(ErrorKind::InvalidInput, "Origem sem diretório pai")
-    })?;
+    let parent = source
+        .parent()
+        .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "Origem sem diretório pai"))?;
     let destination = parent.join(new_name);
     if destination == source {
         return Ok(source.to_path_buf());
     }
     if fs::symlink_metadata(&destination).is_ok() {
-        return Err(io::Error::new(ErrorKind::AlreadyExists, "Já existe um item com esse nome"));
+        return Err(io::Error::new(
+            ErrorKind::AlreadyExists,
+            "Já existe um item com esse nome",
+        ));
     }
     fs::rename(source, &destination)?;
     Ok(destination)
@@ -57,15 +77,21 @@ pub fn rename_item(source: &Path, new_name: &str) -> io::Result<PathBuf> {
 /// Cross-volume moves are reported instead of deleting the source after a partial copy.
 pub fn move_into(source: &Path, destination_directory: &Path) -> io::Result<PathBuf> {
     if !destination_directory.is_dir() {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "O destino não é uma pasta"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "O destino não é uma pasta",
+        ));
     }
     let metadata = fs::symlink_metadata(source)?;
     if metadata.file_type().is_symlink() {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "Mover links simbólicos não é suportado"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Mover links simbólicos não é suportado",
+        ));
     }
-    let source_parent = source.parent().ok_or_else(|| {
-        io::Error::new(ErrorKind::InvalidInput, "Caminho de origem inválido")
-    })?;
+    let source_parent = source
+        .parent()
+        .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "Caminho de origem inválido"))?;
     if fs::canonicalize(source_parent)? == fs::canonicalize(destination_directory)? {
         return Ok(source.to_path_buf());
     }
@@ -73,17 +99,25 @@ pub fn move_into(source: &Path, destination_directory: &Path) -> io::Result<Path
         let canonical_source = fs::canonicalize(source)?;
         let canonical_destination = fs::canonicalize(destination_directory)?;
         if canonical_destination.starts_with(&canonical_source) {
-            return Err(io::Error::new(ErrorKind::InvalidInput, "Uma pasta não pode ser movida para dentro dela mesma"));
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Uma pasta não pode ser movida para dentro dela mesma",
+            ));
         }
     }
-    let name = source.file_name().ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "Nome inválido"))?;
+    let name = source
+        .file_name()
+        .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "Nome inválido"))?;
     let destination = filesystem::unique_copy_path(destination_directory, name, metadata.is_dir())?;
     fs::rename(source, &destination)?;
     Ok(destination)
 }
 
 fn spreadsheet_safe(value: &str) -> String {
-    if matches!(value.chars().next(), Some('=' | '+' | '-' | '@' | '\t' | '\r')) {
+    if matches!(
+        value.chars().next(),
+        Some('=' | '+' | '-' | '@' | '\t' | '\r')
+    ) {
         format!("'{value}")
     } else {
         value.to_owned()
@@ -99,10 +133,16 @@ fn csv_field(value: &str) -> String {
 /// The 'Modified Unix' column contains Unix seconds (blank if unavailable).
 pub fn export_csv(directory: &Path, entries: &[FileEntry]) -> io::Result<PathBuf> {
     if !directory.is_dir() {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "O destino não é uma pasta"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "O destino não é uma pasta",
+        ));
     }
     let path = filesystem::unique_copy_path(directory, OsStr::new("files-export.csv"), false)?;
-    let mut output = OpenOptions::new().write(true).create_new(true).open(&path)?;
+    let mut output = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)?;
     output.write_all(b"\xEF\xBB\xBFName,Type,Size (bytes),Modified (Unix seconds)\r\n")?;
     for entry in entries {
         let kind = match entry.kind {
@@ -110,10 +150,23 @@ pub fn export_csv(directory: &Path, entries: &[FileEntry]) -> io::Result<PathBuf
             EntryKind::File => "File",
             EntryKind::Symlink => "Symlink",
         };
-        let modified = entry.modified.and_then(|value| {
-            value.duration_since(UNIX_EPOCH).ok().map(|duration| duration.as_secs().to_string())
-        }).unwrap_or_default();
-        writeln!(output, "{},{},{},{}\r", csv_field(&entry.name), csv_field(kind), entry.size, modified)?;
+        let modified = entry
+            .modified
+            .and_then(|value| {
+                value
+                    .duration_since(UNIX_EPOCH)
+                    .ok()
+                    .map(|duration| duration.as_secs().to_string())
+            })
+            .unwrap_or_default();
+        writeln!(
+            output,
+            "{},{},{},{}\r",
+            csv_field(&entry.name),
+            csv_field(kind),
+            entry.size,
+            modified
+        )?;
     }
     output.flush()?;
     Ok(path)
@@ -126,7 +179,9 @@ mod tests {
 
     #[test]
     fn refuses_reserved_and_traversal_names() {
-        for name in ["..", "CON.txt", "LPT1", "bad/name", "a\\b", "a:", "file.", "=bad?"] {
+        for name in [
+            "..", "CON.txt", "LPT1", "bad/name", "a\\b", "a:", "file.", "=bad?",
+        ] {
             assert!(validate_name(name).is_err(), "{name}");
         }
         assert!(validate_name("relatório 2026.txt").is_ok());
@@ -139,7 +194,10 @@ mod tests {
         let b = tmp.path().join("b.txt");
         fs::write(&a, "A").unwrap();
         fs::write(&b, "B").unwrap();
-        assert_eq!(rename_item(&a, "b.txt").unwrap_err().kind(), ErrorKind::AlreadyExists);
+        assert_eq!(
+            rename_item(&a, "b.txt").unwrap_err().kind(),
+            ErrorKind::AlreadyExists
+        );
         assert_eq!(fs::read_to_string(&a).unwrap(), "A");
         assert_eq!(fs::read_to_string(&b).unwrap(), "B");
     }
@@ -168,7 +226,10 @@ mod tests {
         assert_eq!(fs::read_to_string(b.join("file.txt")).unwrap(), "old");
         let inside = b.join("inside");
         fs::create_dir(&inside).unwrap();
-        assert_eq!(move_into(&b, &inside).unwrap_err().kind(), ErrorKind::InvalidInput);
+        assert_eq!(
+            move_into(&b, &inside).unwrap_err().kind(),
+            ErrorKind::InvalidInput
+        );
     }
 
     #[test]

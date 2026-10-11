@@ -118,13 +118,17 @@ impl FilesApp {
                     .on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))),
             )
             .child(
-                Button::new("cut").ghost().icon(IconName::Scissors)
+                Button::new("cut")
+                    .ghost()
+                    .icon(IconName::Scissors)
                     .tooltip("Recortar (Ctrl+X)")
                     .disabled(self.selected.is_none())
                     .on_click(cx.listener(|this, _, _, cx| this.cut_selected(cx))),
             )
             .child(
-                Button::new("rename").ghost().icon(IconName::FilePen)
+                Button::new("rename")
+                    .ghost()
+                    .icon(IconName::FilePen)
                     .label("Renomear")
                     .disabled(self.selected.is_none())
                     .on_click(cx.listener(|this, _, window, cx| this.begin_rename(window, cx))),
@@ -174,7 +178,9 @@ impl FilesApp {
                     .on_click(cx.listener(|this, _, _, cx| this.toggle_view(cx))),
             )
             .child(
-                Button::new("export-csv").ghost().icon(IconName::FileDown)
+                Button::new("export-csv")
+                    .ghost()
+                    .icon(IconName::FileDown)
                     .label("Exportar CSV")
                     .disabled(self.transfer_in_progress)
                     .on_click(cx.listener(|this, _, _, cx| this.export_listing(cx))),
@@ -232,15 +238,18 @@ impl FilesApp {
                 .border_color(rgb(BORDER))
                 .bg(rgb(TOOLBAR_BG))
                 .child(div().text_sm().child("Novo nome:"))
+                .child(div().w(px(360.)).child(Input::new(&self.rename_input)))
                 .child(
-                    div().w(px(360.)).child(Input::new(&self.rename_input)),
-                )
-                .child(
-                    Button::new("rename-save").icon(IconName::Check).label("Salvar")
+                    Button::new("rename-save")
+                        .icon(IconName::Check)
+                        .label("Salvar")
                         .on_click(cx.listener(|this, _, _, cx| this.confirm_rename(cx))),
                 )
                 .child(
-                    Button::new("rename-cancel").ghost().icon(IconName::X).label("Cancelar")
+                    Button::new("rename-cancel")
+                        .ghost()
+                        .icon(IconName::X)
+                        .label("Cancelar")
                         .on_click(cx.listener(|this, _, _, cx| this.cancel_rename(cx))),
                 );
         }
