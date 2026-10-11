@@ -30,6 +30,7 @@ The navigation pane is separated into **Quick Access**, **This PC** drives, and 
 | Alt+Enter | Display metadata details for selected item |
 | Shift+Enter | Open selected folder in new tab |
 | Ctrl+T / Ctrl+W | New tab / Close tab |
+| Middle mouse button on a folder | Open folder in a new tab |
 | Alt+Left / Alt+Right / Alt+Up | Back / Forward / Parent |
 | F5 | Reload current folder |
 | Ctrl+Shift+N | New folder |
