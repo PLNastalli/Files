@@ -16,7 +16,7 @@ use gpui_kit::component::{
     toolbar::Toolbar,
 };
 use gpui_kit::{ClickEvent, Div, Render, div, prelude::*, rgb};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 // Win11System is the reference application's default. These are approximations
 // of its light-mode system colors: DevExpress resolves the original palette at runtime.
@@ -69,7 +69,7 @@ impl FilesApp {
             .border_color(rgb(BORDER))
             .child(
                 TabBar::new("explorer-tabs")
-                    .folder()
+                    .outline()
                     .selected_index(self.active_tab)
                     .max_width(px(215.))
                     .children(tabs)
