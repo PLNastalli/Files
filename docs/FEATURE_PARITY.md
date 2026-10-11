@@ -14,7 +14,7 @@ Last manually reviewed: October 2026. Status describes source implementation, no
 | Basic columns (name, type, size, dates) | Partial | Name/type/size/modified available; created date and column customization missing |
 | Media metadata columns | Not implemented | Image, audio, video property extractors and optional codecs |
 | Custom/calculated columns | Not implemented | Safe expression parser, schema and saved definitions |
-| Preview pane | Partial | Metadata details only; no file-content previews yet |
+| Preview pane | Partial | On-demand image (PNG/JPEG/GIF/WebP/BMP) and bounded UTF-8 text/code previews added; no PDF/Office/audio/video handlers |
 | Advanced filtering | Partial | Current-folder name substring only; no filter builder |
 | Conditional formatting | Not implemented | Rules, schema, editing and persisted styling |
 | Save/load layout | Not implemented | Versioned config file with migration and defaults |
