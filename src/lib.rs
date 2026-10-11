@@ -2,3 +2,4 @@
 pub mod filesystem;
 pub mod operations;
 pub mod shortcuts;
+pub mod preview;
