@@ -9,8 +9,8 @@ Last manually reviewed: October 2026. Status describes source implementation, no
 | Tabs | Partial | Multiple tabs and switching; drag to detach, per-tab history and middle-click open are missing |
 | Combined navigation / tree content | Not implemented | Expandable hierarchy, virtualized subtrees, keyboard navigation |
 | Batch rename with formulas | Partial | Numbered prefix rename for Ctrl-selected items, conflict preflight; full formula parser, preview and guaranteed rollback missing |
-| Standard Windows context menu | Not implemented | Shell COM integration and application-custom menu configuration |
-| Custom context menu expressions | Not implemented | Safely modeled actions and arguments, opt-in execution |
+| Standard Windows context menu | Partial | GPUI Kit file/Quick Access right-click menu implemented; native Windows Shell handlers and user-customized menus missing |
+| Custom context menu expressions | Not implemented | User-defined context actions and safe expression handling missing |
 | Basic columns (name, type, size, dates) | Partial | Name/type/size/modified available; created date and column customization missing |
 | Media metadata columns | Not implemented | Image, audio, video property extractors and optional codecs |
 | Custom/calculated columns | Not implemented | Safe expression parser, schema and saved definitions |
