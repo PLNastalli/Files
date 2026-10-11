@@ -502,9 +502,9 @@ impl FilesApp {
     }
 
     fn select_all(&mut self, cx: &mut Context<Self>) {
-        self.selected_paths = self
-            .entries
-            .iter()
+        let query = self.search.read(cx).value().to_string().to_lowercase();
+        self.selected_paths = self.entries.iter()
+            .filter(|entry| query.is_empty() || entry.name.to_lowercase().contains(&query))
             .map(|entry| entry.path.clone())
             .collect();
         self.selected = self.selected_paths.last().cloned();
@@ -520,9 +520,12 @@ impl FilesApp {
     }
 
     fn invert_selection(&mut self, cx: &mut Context<Self>) {
+        let query = self.search.read(cx).value().to_string().to_lowercase();
         let mut selected = Vec::new();
         for entry in &self.entries {
-            if !self.selected_paths.contains(&entry.path) {
+            if (query.is_empty() || entry.name.to_lowercase().contains(&query))
+                && !self.selected_paths.contains(&entry.path)
+            {
                 selected.push(entry.path.clone());
             }
         }
