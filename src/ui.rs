@@ -697,12 +697,15 @@ impl FilesApp {
     // Ancestors and immediate child folders form the visible navigation hierarchy.
     fn navigation_tree(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let view = cx.entity();
-        let quick_access = self
+        let mut quick_access = Vec::new();
+        let mut drives = Vec::new();
+        self
             .shortcuts
             .clone()
             .into_iter()
             .enumerate()
-            .map(|(index, (label, path))| {
+            .for_each(|(index, (label, path))| {
+                let is_drive = label.starts_with("Disco");
                 let active = self.directory == path;
                 let context_view = view.clone();
                 let context_path = path.clone();
@@ -712,7 +715,7 @@ impl FilesApp {
                 } else {
                     IconName::Folder
                 };
-                div()
+                let row = div()
                     .id(("quick-access", index))
                     .h(px(28.))
                     .px_3()
@@ -754,9 +757,13 @@ impl FilesApp {
                                 })));
                         }
                         menu
-                    })
-            })
-            .collect::<Vec<_>>();
+                    });
+                if is_drive {
+                    drives.push(row);
+                } else {
+                    quick_access.push(row);
+                }
+            });
 
         let mut ancestry = self
             .directory
@@ -843,6 +850,12 @@ impl FilesApp {
                     .child("Acesso rápido"),
             )
             .children(quick_access)
+            .child(
+                div().h(px(34.)).px_3().pt_3()
+                    .text_xs().text_color(rgb(SECONDARY))
+                    .child("Este computador"),
+            )
+            .children(drives)
             .child(
                 div()
                     .h(px(34.))
