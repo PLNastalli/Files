@@ -26,7 +26,6 @@ enum ViewMode {
     Tiles,
 }
 
-
 actions!(
     files,
     [

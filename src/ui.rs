@@ -49,11 +49,15 @@ fn modified_date(entry: &FileEntry) -> String {
 
 impl FilesApp {
     fn tab_strip(&mut self, cx: &mut Context<Self>) -> Div {
-        let tabs = self.tabs.iter().map(|path| {
-            Tab::new()
-                .label(display_name(path))
-                .icon(Icon::new(IconName::Folder))
-        }).collect::<Vec<_>>();
+        let tabs = self
+            .tabs
+            .iter()
+            .map(|path| {
+                Tab::new()
+                    .label(display_name(path))
+                    .icon(Icon::new(IconName::Folder))
+            })
+            .collect::<Vec<_>>();
 
         div()
             .h(px(42.))
@@ -73,16 +77,25 @@ impl FilesApp {
                         this.select_tab(*index, cx);
                     }))
                     .suffix(
-                        div().flex().items_center().gap_1()
-                            .child(Button::new("tab-add").ghost()
-                                .icon(IconName::Plus)
-                                .tooltip("Nova aba (Ctrl+T)")
-                                .on_click(cx.listener(|this, _, _, cx| this.new_tab(cx))))
-                            .child(Button::new("tab-close").ghost()
-                                .icon(IconName::X)
-                                .tooltip("Fechar aba (Ctrl+W)")
-                                .disabled(self.tabs.len() <= 1)
-                                .on_click(cx.listener(|this, _, _, cx| this.close_tab(cx)))),
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_1()
+                            .child(
+                                Button::new("tab-add")
+                                    .ghost()
+                                    .icon(IconName::Plus)
+                                    .tooltip("Nova aba (Ctrl+T)")
+                                    .on_click(cx.listener(|this, _, _, cx| this.new_tab(cx))),
+                            )
+                            .child(
+                                Button::new("tab-close")
+                                    .ghost()
+                                    .icon(IconName::X)
+                                    .tooltip("Fechar aba (Ctrl+W)")
+                                    .disabled(self.tabs.len() <= 1)
+                                    .on_click(cx.listener(|this, _, _, cx| this.close_tab(cx))),
+                            ),
                     ),
             )
     }
@@ -90,32 +103,42 @@ impl FilesApp {
     fn toolbar(&mut self, cx: &mut Context<Self>) -> Div {
         let mut bar = Toolbar::new("explorer-commands")
             .child(
-                Button::new("new-directory").ghost()
-                    .icon(IconName::FolderPlus).label("Novo")
+                Button::new("new-directory")
+                    .ghost()
+                    .icon(IconName::FolderPlus)
+                    .label("Novo")
                     .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx))),
             )
             .content(div().w(px(1.)).h(px(23.)).mx_2().bg(rgb(BORDER)))
             .child(
-                Button::new("copy").ghost().icon(IconName::Copy)
+                Button::new("copy")
+                    .ghost()
+                    .icon(IconName::Copy)
                     .tooltip("Copiar (Ctrl+C)")
                     .disabled(self.selected.is_none())
                     .on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))),
             )
             .child(
-                Button::new("paste").ghost().icon(IconName::ClipboardPaste)
+                Button::new("paste")
+                    .ghost()
+                    .icon(IconName::ClipboardPaste)
                     .tooltip("Colar (Ctrl+V)")
                     .disabled(self.copied.is_none() || self.transfer_in_progress)
                     .on_click(cx.listener(|this, _, _, cx| this.paste(cx))),
             )
             .child(
-                Button::new("trash").ghost().icon(IconName::Trash)
+                Button::new("trash")
+                    .ghost()
+                    .icon(IconName::Trash)
                     .tooltip("Enviar para a Lixeira")
                     .disabled(self.selected.is_none())
                     .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx))),
             )
             .content(div().w(px(1.)).h(px(23.)).mx_2().bg(rgb(BORDER)))
             .child(
-                Button::new("sort").ghost().icon(IconName::ArrowDownAZ)
+                Button::new("sort")
+                    .ghost()
+                    .icon(IconName::ArrowDownAZ)
                     .label("Classificar")
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.sort = this.sort.next();
@@ -123,7 +146,9 @@ impl FilesApp {
                     })),
             )
             .child(
-                Button::new("hidden").ghost().icon(IconName::Eye)
+                Button::new("hidden")
+                    .ghost()
+                    .icon(IconName::Eye)
                     .label("Ocultos")
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.show_hidden = !this.show_hidden;
@@ -131,13 +156,17 @@ impl FilesApp {
                     })),
             )
             .child(
-                Button::new("view").ghost().icon(IconName::LayoutGrid)
+                Button::new("view")
+                    .ghost()
+                    .icon(IconName::LayoutGrid)
                     .label("Exibir")
                     .on_click(cx.listener(|this, _, _, cx| this.toggle_view(cx))),
             )
             .content(div().flex_1())
             .child(
-                Button::new("details").ghost().icon(IconName::PanelRight)
+                Button::new("details")
+                    .ghost()
+                    .icon(IconName::PanelRight)
                     .label("Detalhes")
                     .on_click(cx.listener(|this, _, _, cx| this.toggle_details(cx))),
             );
@@ -145,12 +174,15 @@ impl FilesApp {
         if self.confirm_trash {
             bar = bar
                 .child(
-                    Button::new("confirm-trash").icon(IconName::Check)
+                    Button::new("confirm-trash")
+                        .icon(IconName::Check)
                         .label("Confirmar")
                         .on_click(cx.listener(|this, _, _, cx| this.confirm_trash(cx))),
                 )
                 .child(
-                    Button::new("cancel-trash").ghost().icon(IconName::X)
+                    Button::new("cancel-trash")
+                        .ghost()
+                        .icon(IconName::X)
                         .label("Cancelar")
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.confirm_trash = false;
@@ -171,128 +203,210 @@ impl FilesApp {
     }
 
     fn sidebar(&mut self, cx: &mut Context<Self>) -> Sidebar<SidebarGroup<SidebarMenu>> {
-        let locations = self.shortcuts.clone().into_iter().map(|(label, path)| {
-            let active = self.directory == path;
-            let icon = match label.as_str() {
-                "Início" => IconName::House,
-                "Área de Trabalho" => IconName::Monitor,
-                "Documentos" => IconName::FileText,
-                "Downloads" => IconName::Download,
-                "Imagens" => IconName::Image,
-                "Vídeos" => IconName::Clapperboard,
-                "Músicas" => IconName::Music,
-                text if text.starts_with("Disco") => IconName::HardDrive,
-                _ => IconName::Folder,
-            };
-            SidebarMenuItem::new(label)
-                .icon(icon)
-                .active(active)
-                .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
-        }).collect::<Vec<_>>();
+        let locations = self
+            .shortcuts
+            .clone()
+            .into_iter()
+            .map(|(label, path)| {
+                let active = self.directory == path;
+                let icon = match label.as_str() {
+                    "Início" => IconName::House,
+                    "Área de Trabalho" => IconName::Monitor,
+                    "Documentos" => IconName::FileText,
+                    "Downloads" => IconName::Download,
+                    "Imagens" => IconName::Image,
+                    "Vídeos" => IconName::Clapperboard,
+                    "Músicas" => IconName::Music,
+                    text if text.starts_with("Disco") => IconName::HardDrive,
+                    _ => IconName::Folder,
+                };
+                SidebarMenuItem::new(label)
+                    .icon(icon)
+                    .active(active)
+                    .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+            })
+            .collect::<Vec<_>>();
 
         Sidebar::new("explorer-sidebar")
             .w(px(236.))
             .header(
                 SidebarHeader::new().child(
-                    div().w_full().flex().items_center().gap_2().px_2()
+                    div()
+                        .w_full()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .px_2()
                         .child(Icon::new(IconName::House).text_color(cx.theme().primary))
-                        .child(div().font_weight(gpui_kit::FontWeight::SEMIBOLD).child("Início")),
+                        .child(
+                            div()
+                                .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                .child("Início"),
+                        ),
                 ),
             )
-            .child(
-                SidebarGroup::new("ACESSO RÁPIDO")
-                    .child(SidebarMenu::new().children(locations)),
-            )
+            .child(SidebarGroup::new("ACESSO RÁPIDO").child(SidebarMenu::new().children(locations)))
             .footer(
                 SidebarFooter::new().child(
-                    div().text_xs().text_color(cx.theme().muted_foreground)
+                    div()
+                        .text_xs()
+                        .text_color(cx.theme().muted_foreground)
                         .child("Este computador"),
                 ),
             )
     }
 
     fn navigation(&mut self, cx: &mut Context<Self>) -> Div {
-        let mut segments = self.directory.ancestors()
+        let mut segments = self
+            .directory
+            .ancestors()
             .filter(|part| !part.as_os_str().is_empty())
             .map(Path::to_path_buf)
             .collect::<Vec<_>>();
         segments.reverse();
-        let crumbs = segments.into_iter().enumerate().map(|(index, path)| {
-            div()
-                .flex().items_center().gap_1()
-                .child(Icon::new(IconName::ChevronRight).xsmall()
-                    .text_color(cx.theme().muted_foreground))
-                .child(
-                    div().id(("breadcrumb", index))
-                        .px_2().py_1().rounded_sm()
-                        .text_sm().cursor_pointer()
-                        .hover(|style| style.bg(rgb(HOVER)))
-                        .child(display_name(&path))
-                        .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx))),
-                )
-        }).collect::<Vec<_>>();
+        let crumbs = segments
+            .into_iter()
+            .enumerate()
+            .map(|(index, path)| {
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .child(
+                        Icon::new(IconName::ChevronRight)
+                            .xsmall()
+                            .text_color(cx.theme().muted_foreground),
+                    )
+                    .child(
+                        div()
+                            .id(("breadcrumb", index))
+                            .px_2()
+                            .py_1()
+                            .rounded_sm()
+                            .text_sm()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(HOVER)))
+                            .child(display_name(&path))
+                            .on_click(
+                                cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)),
+                            ),
+                    )
+            })
+            .collect::<Vec<_>>();
 
-        div().h(px(60.)).px_4().flex().items_center().gap_3()
-            .bg(rgb(CANVAS)).border_b_1().border_color(rgb(BORDER))
+        div()
+            .h(px(60.))
+            .px_4()
+            .flex()
+            .items_center()
+            .gap_3()
+            .bg(rgb(CANVAS))
+            .border_b_1()
+            .border_color(rgb(BORDER))
             .child(
-                div().flex().items_center().gap_1()
-                    .child(Button::new("nav-back").ghost().icon(IconName::ArrowLeft)
-                        .tooltip("Voltar").disabled(self.history_index == 0)
-                        .on_click(cx.listener(|this, _, _, cx| this.back(cx))))
-                    .child(Button::new("nav-forward").ghost().icon(IconName::ArrowRight)
-                        .tooltip("Avançar").disabled(self.history_index + 1 >= self.history.len())
-                        .on_click(cx.listener(|this, _, _, cx| this.forward(cx))))
-                    .child(Button::new("nav-up").ghost().icon(IconName::ArrowUp)
-                        .tooltip("Subir")
-                        .on_click(cx.listener(|this, _, _, cx| this.up(cx))))
-                    .child(Button::new("nav-refresh").ghost().icon(IconName::RefreshCw)
-                        .tooltip("Atualizar")
-                        .on_click(cx.listener(|this, _, _, cx| this.reload(cx)))),
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .child(
+                        Button::new("nav-back")
+                            .ghost()
+                            .icon(IconName::ArrowLeft)
+                            .tooltip("Voltar")
+                            .disabled(self.history_index == 0)
+                            .on_click(cx.listener(|this, _, _, cx| this.back(cx))),
+                    )
+                    .child(
+                        Button::new("nav-forward")
+                            .ghost()
+                            .icon(IconName::ArrowRight)
+                            .tooltip("Avançar")
+                            .disabled(self.history_index + 1 >= self.history.len())
+                            .on_click(cx.listener(|this, _, _, cx| this.forward(cx))),
+                    )
+                    .child(
+                        Button::new("nav-up")
+                            .ghost()
+                            .icon(IconName::ArrowUp)
+                            .tooltip("Subir")
+                            .on_click(cx.listener(|this, _, _, cx| this.up(cx))),
+                    )
+                    .child(
+                        Button::new("nav-refresh")
+                            .ghost()
+                            .icon(IconName::RefreshCw)
+                            .tooltip("Atualizar")
+                            .on_click(cx.listener(|this, _, _, cx| this.reload(cx))),
+                    ),
             )
             .child(
-                div().flex_1().min_w_0().h(px(37.)).px_2()
-                    .flex().items_center().gap_1()
-                    .rounded_md().border_1().border_color(rgb(BORDER))
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .h(px(37.))
+                    .px_2()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(rgb(BORDER))
                     .bg(rgb(TOOLBAR_BG))
                     .children(crumbs),
             )
             .child(
-                div().w(px(275.)).flex_shrink_0()
-                    .child(Input::new(&self.search)
+                div().w(px(275.)).flex_shrink_0().child(
+                    Input::new(&self.search)
                         .prefix(Icon::new(IconName::Search).small())
-                        .cleanable(true)),
+                        .cleanable(true),
+                ),
             )
     }
 
     fn file_list(&mut self, cx: &mut Context<Self>) -> Div {
         let query = self.search.read(cx).value().to_string().to_lowercase();
-        let visible = self.entries.iter()
+        let visible = self
+            .entries
+            .iter()
             .filter(|entry| query.is_empty() || entry.name.to_lowercase().contains(&query))
-            .cloned().collect::<Vec<_>>();
+            .cloned()
+            .collect::<Vec<_>>();
         let tiles = self.view_mode == ViewMode::Tiles;
-        let mut list = div().id("explorer-file-scroller")
-            .flex_1().min_h_0().overflow_y_scroll().bg(rgb(CANVAS));
+        let mut list = div()
+            .id("explorer-file-scroller")
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scroll()
+            .bg(rgb(CANVAS));
         if tiles {
             list = list.flex().flex_wrap().content_start().p_3();
         }
 
         if visible.is_empty() {
             list = list.child(
-                div().h_full().w_full().flex().items_center().justify_center()
+                div()
+                    .h_full()
+                    .w_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
                     .child(
                         Empty::new().header(
                             EmptyHeader::new()
-                                .media(EmptyMedia::new()
-                                    .with_variant(EmptyMediaVariant::Icon)
-                                    .child(Icon::new(IconName::FolderOpen)))
+                                .media(
+                                    EmptyMedia::new()
+                                        .with_variant(EmptyMediaVariant::Icon)
+                                        .child(Icon::new(IconName::FolderOpen)),
+                                )
                                 .title(EmptyTitle::new().child(if query.is_empty() {
                                     "Esta pasta está vazia"
                                 } else {
                                     "Nenhum resultado encontrado"
                                 }))
-                                .description(EmptyDescription::new().child(
-                                    "Os arquivos desta pasta aparecem aqui."
-                                )),
+                                .description(
+                                    EmptyDescription::new()
+                                        .child("Os arquivos desta pasta aparecem aqui."),
+                                ),
                         ),
                     ),
             );
@@ -304,7 +418,14 @@ impl FilesApp {
                     EntryKind::Folder => IconName::Folder,
                     EntryKind::Symlink => IconName::Link,
                     EntryKind::File => {
-                        match entry.path.extension().and_then(|ext| ext.to_str()).unwrap_or("").to_ascii_lowercase().as_str() {
+                        match entry
+                            .path
+                            .extension()
+                            .and_then(|ext| ext.to_str())
+                            .unwrap_or("")
+                            .to_ascii_lowercase()
+                            .as_str()
+                        {
                             "png" | "jpg" | "jpeg" | "gif" | "webp" => IconName::FileImage,
                             "mp4" | "mkv" | "mov" => IconName::FileVideoCamera,
                             "mp3" | "wav" | "flac" => IconName::FileMusic,
@@ -338,7 +459,11 @@ impl FilesApp {
                             })),
                     );
                 } else {
-                    let size = if folder { "—".to_owned() } else { filesystem::display_size(entry.size) };
+                    let size = if folder {
+                        "—".to_owned()
+                    } else {
+                        filesystem::display_size(entry.size)
+                    };
                     list = list.child(
                         div().id(("file-row", index))
                             .mx_2().h(px(36.)).px_3()
@@ -370,55 +495,113 @@ impl FilesApp {
             }
         }
 
-        div().flex_1().min_h_0().flex().flex_col()
-            .when(!tiles, |this| this.child(
-                div().h(px(36.)).px_5().flex().items_center()
-                    .text_xs().font_weight(gpui_kit::FontWeight::MEDIUM)
-                    .text_color(rgb(SECONDARY))
-                    .bg(rgb(TOOLBAR_BG))
-                    .border_b_1().border_color(rgb(BORDER))
-                    .child(div().flex_1().child("Nome"))
-                    .child(div().w(px(162.)).child("Data de modificação"))
-                    .child(div().w(px(112.)).child("Tipo"))
-                    .child(div().w(px(90.)).text_right().child("Tamanho"))
-            ))
+        div()
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .when(!tiles, |this| {
+                this.child(
+                    div()
+                        .h(px(36.))
+                        .px_5()
+                        .flex()
+                        .items_center()
+                        .text_xs()
+                        .font_weight(gpui_kit::FontWeight::MEDIUM)
+                        .text_color(rgb(SECONDARY))
+                        .bg(rgb(TOOLBAR_BG))
+                        .border_b_1()
+                        .border_color(rgb(BORDER))
+                        .child(div().flex_1().child("Nome"))
+                        .child(div().w(px(162.)).child("Data de modificação"))
+                        .child(div().w(px(112.)).child("Tipo"))
+                        .child(div().w(px(90.)).text_right().child("Tamanho")),
+                )
+            })
             .child(list)
     }
 
     fn details_panel(&mut self, cx: &mut Context<Self>) -> Div {
         let item = self.selected.as_ref().and_then(|path| {
-            self.entries.iter().find(|entry| &entry.path == path).cloned()
+            self.entries
+                .iter()
+                .find(|entry| &entry.path == path)
+                .cloned()
         });
         let mut panel = div()
-            .w(px(258.)).h_full().flex_shrink_0()
-            .p_4().flex().flex_col().gap_4()
-            .border_l_1().border_color(rgb(BORDER))
+            .w(px(258.))
+            .h_full()
+            .flex_shrink_0()
+            .p_4()
+            .flex()
+            .flex_col()
+            .gap_4()
+            .border_l_1()
+            .border_color(rgb(BORDER))
             .bg(rgb(SIDEBAR_BG))
             .child(
-                div().font_weight(gpui_kit::FontWeight::SEMIBOLD).text_color(rgb(TEXT))
+                div()
+                    .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                    .text_color(rgb(TEXT))
                     .child("Detalhes"),
             );
 
         if let Some(entry) = item {
-            let icon = if entry.kind == EntryKind::Folder { IconName::FolderOpen } else { IconName::File };
+            let icon = if entry.kind == EntryKind::Folder {
+                IconName::FolderOpen
+            } else {
+                IconName::File
+            };
             panel = panel
-                .child(div().pt_5().flex().justify_center()
-                    .child(Icon::new(icon).text_color(cx.theme().primary).large()))
-                .child(div().text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
-                    .text_color(rgb(TEXT)).child(entry.name.clone()))
-                .child(div().text_xs().text_color(rgb(SECONDARY))
-                    .child(format!("Tipo: {}", entry.kind_label())))
-                .child(div().text_xs().text_color(rgb(SECONDARY))
-                    .child(format!("Tamanho: {}", filesystem::display_size(entry.size))))
-                .child(div().text_xs().text_color(rgb(SECONDARY))
-                    .child(format!("Modificado: {}", modified_date(&entry))));
+                .child(
+                    div()
+                        .pt_5()
+                        .flex()
+                        .justify_center()
+                        .child(Icon::new(icon).text_color(cx.theme().primary).large()),
+                )
+                .child(
+                    div()
+                        .text_sm()
+                        .font_weight(gpui_kit::FontWeight::MEDIUM)
+                        .text_color(rgb(TEXT))
+                        .child(entry.name.clone()),
+                )
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(rgb(SECONDARY))
+                        .child(format!("Tipo: {}", entry.kind_label())),
+                )
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(rgb(SECONDARY))
+                        .child(format!("Tamanho: {}", filesystem::display_size(entry.size))),
+                )
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(rgb(SECONDARY))
+                        .child(format!("Modificado: {}", modified_date(&entry))),
+                );
         } else {
             panel = panel
-                .child(div().pt_8().flex().justify_center()
-                    .child(Icon::new(IconName::FileSearch).large()
-                        .text_color(cx.theme().muted_foreground)))
-                .child(div().text_sm().text_center().text_color(rgb(SECONDARY))
-                    .child("Selecione um item para ver seus detalhes."));
+                .child(
+                    div().pt_8().flex().justify_center().child(
+                        Icon::new(IconName::FileSearch)
+                            .large()
+                            .text_color(cx.theme().muted_foreground),
+                    ),
+                )
+                .child(
+                    div()
+                        .text_sm()
+                        .text_center()
+                        .text_color(rgb(SECONDARY))
+                        .child("Selecione um item para ver seus detalhes."),
+                );
         }
         panel
     }
@@ -426,7 +609,8 @@ impl FilesApp {
 
 impl Render for FilesApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div().id("files-root")
+        div()
+            .id("files-root")
             .track_focus(&self.focus)
             .on_action(cx.listener(|this, _: &Back, _, cx| this.back(cx)))
             .on_action(cx.listener(|this, _: &Forward, _, cx| this.forward(cx)))
@@ -449,48 +633,83 @@ impl Render for FilesApp {
             .on_action(cx.listener(|this, _: &CloseTab, _, cx| this.close_tab(cx)))
             .on_action(cx.listener(|this, _: &ToggleDetails, _, cx| this.toggle_details(cx)))
             .on_action(cx.listener(|this, _: &ToggleView, _, cx| this.toggle_view(cx)))
-            .size_full().flex().flex_col()
-            .bg(rgb(CANVAS)).text_color(rgb(TEXT))
+            .size_full()
+            .flex()
+            .flex_col()
+            .bg(rgb(CANVAS))
+            .text_color(rgb(TEXT))
             .child(
                 TitleBar::new().child(
-                    div().flex().items_center().gap_3().pl_3()
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        .pl_3()
                         .child(Icon::new(IconName::FolderOpen).text_color(cx.theme().primary))
-                        .child(div().font_weight(gpui_kit::FontWeight::SEMIBOLD).child("Files"))
-                        .child(div().text_xs().text_color(rgb(SECONDARY))
-                            .child("Explorador de Arquivos")),
+                        .child(
+                            div()
+                                .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                .child("Files"),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(rgb(SECONDARY))
+                                .child("Explorador de Arquivos"),
+                        ),
                 ),
             )
             .child(self.tab_strip(cx))
             .child(self.navigation(cx))
             .child(self.toolbar(cx))
             .child(
-                div().flex_1().min_h_0().flex().bg(rgb(CANVAS))
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .flex()
+                    .bg(rgb(CANVAS))
                     .child(self.sidebar(cx))
                     .child(
-                        div().flex_1().min_w_0().flex().flex_col()
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .flex()
+                            .flex_col()
                             .child(
-                                div().h(px(48.)).px_5().flex().items_center().justify_between()
+                                div()
+                                    .h(px(48.))
+                                    .px_5()
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
                                     .bg(rgb(CANVAS))
-                                    .child(div().text_base()
-                                        .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                        .child(display_name(&self.directory)))
-                                    .child(div().text_xs().text_color(rgb(SECONDARY))
-                                        .child(format!("{} itens", self.entries.len()))),
+                                    .child(
+                                        div()
+                                            .text_base()
+                                            .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                            .child(display_name(&self.directory)),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .text_color(rgb(SECONDARY))
+                                            .child(format!("{} itens", self.entries.len())),
+                                    ),
                             )
                             .child(self.file_list(cx)),
                     )
                     .when(self.details_open, |this| this.child(self.details_panel(cx))),
             )
             .child(
-                div().bg(rgb(WINDOW_BG)).child(
-                    StatusBar::new()
-                        .left(self.status.clone())
-                        .right(if self.selected.is_some() {
+                div()
+                    .bg(rgb(WINDOW_BG))
+                    .child(StatusBar::new().left(self.status.clone()).right(
+                        if self.selected.is_some() {
                             "1 item selecionado"
                         } else {
                             "Nenhum item selecionado"
-                        }),
-                ),
+                        },
+                    )),
             )
     }
 }
