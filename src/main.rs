@@ -9,7 +9,7 @@ use std::{
 
 use files::{
     filesystem::{self, FileEntry, SortBy},
-    operations,
+    operations, shortcuts,
 };
 use gpui_kit::component::{
     Theme, ThemeMode, TitleBar,
@@ -56,7 +56,11 @@ actions!(
         Cut,
         Rename,
         ExportCsv,
-        ToggleRowNumbers
+        ToggleRowNumbers,
+        SelectAll,
+        ClearSelection,
+        ShowProperties,
+        OpenInNewTab,
     ]
 );
 
@@ -90,6 +94,7 @@ struct FilesApp {
     watcher: Option<RecommendedWatcher>,
     change_rx: Option<Receiver<notify::Result<Event>>>,
     shortcuts: Vec<(String, PathBuf)>,
+    pinned: Vec<PathBuf>,
 }
 
 impl FilesApp {
@@ -109,6 +114,15 @@ impl FilesApp {
             let path = home.join(folder);
             if path.is_dir() {
                 shortcuts.push((label.to_string(), path));
+            }
+        }
+        let pinned = shortcuts::config_path()
+            .and_then(|path| shortcuts::load(&path))
+            .unwrap_or_default();
+        for path in &pinned {
+            if !shortcuts.iter().any(|(_, entry)| entry == path) {
+                shortcuts.push((path.file_name().map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| path.display().to_string()), path.clone()));
             }
         }
         #[cfg(windows)]
@@ -161,6 +175,7 @@ impl FilesApp {
             watcher: None,
             change_rx: None,
             shortcuts,
+            pinned,
         };
         result.reload(cx);
         result.watch_directory();
@@ -338,6 +353,68 @@ impl FilesApp {
     fn toggle_navigation(&mut self, cx: &mut Context<Self>) {
         self.show_navigation = !self.show_navigation;
         cx.notify();
+    }
+
+    /// Pin a real folder to quick access; changes persist across app restarts.
+    fn pin_folder(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        if !path.is_dir() {
+            self.status = "Apenas pastas podem ser fixadas".to_owned();
+            cx.notify();
+            return;
+        }
+        if !self.pinned.contains(&path) {
+            self.pinned.push(path.clone());
+        }
+        if !self.shortcuts.iter().any(|(_, existing)| existing == &path) {
+            let label = path.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| path.display().to_string());
+            self.shortcuts.push((label, path));
+        }
+        self.save_pins(cx);
+    }
+
+    fn unpin_folder(&mut self, path: &std::path::Path, cx: &mut Context<Self>) {
+        self.pinned.retain(|entry| entry != path);
+        // Preserve built-in home, known folders and drive entries.
+        let home = dirs::home_dir().unwrap_or_default();
+        let is_default = path == home
+            || ["Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music"]
+                .iter().any(|name| path == home.join(name))
+            || path.parent().is_none_or(|parent| parent == path);
+        if !is_default {
+            self.shortcuts.retain(|(_, entry)| entry != path);
+        }
+        self.save_pins(cx);
+    }
+
+    fn save_pins(&mut self, cx: &mut Context<Self>) {
+        match shortcuts::config_path().and_then(|path| shortcuts::save(&path, &self.pinned)) {
+            Ok(()) => self.status = "Acesso rápido atualizado".to_owned(),
+            Err(error) => self.status = format!("Não foi possível salvar atalhos: {error}"),
+        }
+        cx.notify();
+    }
+
+    fn open_in_new_tab(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        if !path.is_dir() {
+            self.status = "Uma nova aba precisa apontar para uma pasta".to_owned();
+            cx.notify();
+            return;
+        }
+        self.tabs.push(path.clone());
+        self.active_tab = self.tabs.len() - 1;
+        self.history = vec![path.clone()];
+        self.history_index = 0;
+        self.change_directory(path, cx);
+    }
+
+    fn show_properties(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        if self.entries.iter().any(|entry| entry.path == path) {
+            self.set_selection(path);
+            self.details_open = true;
+            cx.notify();
+        }
     }
 
     fn select_all(&mut self, cx: &mut Context<Self>) {
@@ -620,6 +697,10 @@ fn main() {
                 KeyBinding::new("f2", Rename, None),
                 KeyBinding::new("ctrl-shift-e", ExportCsv, None),
                 KeyBinding::new("ctrl-shift-l", ToggleRowNumbers, None),
+                KeyBinding::new("ctrl-a", SelectAll, None),
+                KeyBinding::new("escape", ClearSelection, None),
+                KeyBinding::new("alt-enter", ShowProperties, None),
+                KeyBinding::new("shift-enter", OpenInNewTab, None),
                 KeyBinding::new("ctrl-t", NewTab, None),
                 KeyBinding::new("ctrl-w", CloseTab, None),
                 KeyBinding::new("alt-shift-p", ToggleDetails, None),
