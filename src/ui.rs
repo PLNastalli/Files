@@ -13,7 +13,9 @@ use gpui_kit::component::{
     menu::{ContextMenuExt as _, PopupMenu, PopupMenuItem},
     status_bar::StatusBar,
 };
-use gpui_kit::{ClickEvent, Div, MouseButton, ObjectFit, Render, Stateful, div, img, prelude::*, rgb};
+use gpui_kit::{
+    ClickEvent, Div, MouseButton, ObjectFit, Render, Stateful, div, img, prelude::*, rgb,
+};
 use std::path::Path;
 
 // Win11System is the reference application's default. These are approximations
@@ -575,7 +577,9 @@ impl FilesApp {
                                     } else {
                                         "Pré-visualizar"
                                     })
-                                    .on_click(cx.listener(|this, _, _, cx| this.toggle_preview(cx))),
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.toggle_preview(cx)),
+                                    ),
                             ),
                     ))
                     .child(ribbon_group(
@@ -1280,43 +1284,75 @@ impl FilesApp {
             Some(preview::PreviewData::Image(path)) => {
                 pane = pane
                     .child(
-                        div().h(px(320.)).w_full().rounded_md().bg(rgb(CANVAS))
+                        div()
+                            .h(px(320.))
+                            .w_full()
+                            .rounded_md()
+                            .bg(rgb(CANVAS))
                             .child(
                                 img(path)
                                     .id("files-preview-image")
                                     .w_full()
                                     .h(px(320.))
                                     .object_fit(ObjectFit::Contain)
-                                    .with_loading(|| div().p_3().child("Carregando imagem...").into_any_element())
-                                    .with_fallback(|| div().p_3().child("Imagem não disponível").into_any_element()),
+                                    .with_loading(|| {
+                                        div().p_3().child("Carregando imagem...").into_any_element()
+                                    })
+                                    .with_fallback(|| {
+                                        div()
+                                            .p_3()
+                                            .child("Imagem não disponível")
+                                            .into_any_element()
+                                    }),
                             ),
                     )
-                    .child(div().text_xs().text_color(rgb(SECONDARY))
-                        .child("Imagem local · somente leitura"));
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(rgb(SECONDARY))
+                            .child("Imagem local · somente leitura"),
+                    );
             }
             Some(preview::PreviewData::Text { content, truncated }) => {
                 pane = pane
                     .child(
-                        div().id("preview-text-scroller").flex_1().min_h_0()
-                            .overflow_y_scroll().p_2().bg(rgb(CANVAS))
-                            .border_1().border_color(rgb(BORDER))
+                        div()
+                            .id("preview-text-scroller")
+                            .flex_1()
+                            .min_h_0()
+                            .overflow_y_scroll()
+                            .p_2()
+                            .bg(rgb(CANVAS))
+                            .border_1()
+                            .border_color(rgb(BORDER))
                             .child(div().text_xs().text_color(rgb(TEXT)).child(content)),
                     )
-                    .when(truncated, |this| this.child(
-                        div().text_xs().text_color(rgb(SECONDARY))
-                            .child("Pré-visualização limitada aos primeiros 64 KiB."),
-                    ));
+                    .when(truncated, |this| {
+                        this.child(
+                            div()
+                                .text_xs()
+                                .text_color(rgb(SECONDARY))
+                                .child("Pré-visualização limitada aos primeiros 64 KiB."),
+                        )
+                    });
             }
             Some(preview::PreviewData::Unsupported(message)) => {
-                pane = pane.child(div().pt_6().text_sm().text_color(rgb(SECONDARY)).child(message));
+                pane = pane.child(
+                    div()
+                        .pt_6()
+                        .text_sm()
+                        .text_color(rgb(SECONDARY))
+                        .child(message),
+                );
             }
             None => {
-                pane = pane.child(div().pt_6().text_sm().text_color(rgb(SECONDARY))
-                    .child(if self.preview_file.is_some() {
+                pane = pane.child(div().pt_6().text_sm().text_color(rgb(SECONDARY)).child(
+                    if self.preview_file.is_some() {
                         "Carregando pré-visualização..."
                     } else {
                         "Selecione um arquivo para pré-visualizar."
-                    }));
+                    },
+                ));
             }
         }
         pane

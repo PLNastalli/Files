@@ -503,7 +503,9 @@ impl FilesApp {
 
     fn select_all(&mut self, cx: &mut Context<Self>) {
         let query = self.search.read(cx).value().to_string().to_lowercase();
-        self.selected_paths = self.entries.iter()
+        self.selected_paths = self
+            .entries
+            .iter()
             .filter(|entry| query.is_empty() || entry.name.to_lowercase().contains(&query))
             .map(|entry| entry.path.clone())
             .collect();

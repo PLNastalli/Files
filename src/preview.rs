@@ -50,10 +50,38 @@ pub fn read_preview(path: &Path) -> io::Result<PreviewData> {
 
     if !matches!(
         extension.as_str(),
-        "txt" | "md" | "markdown" | "rs" | "toml" | "json" | "yaml" | "yml"
-            | "xml" | "html" | "htm" | "css" | "js" | "ts" | "jsx" | "tsx"
-            | "py" | "go" | "java" | "c" | "h" | "cpp" | "hpp" | "cs"
-            | "sql" | "log" | "ini" | "cfg" | "csv" | "bat" | "ps1" | "sh"
+        "txt"
+            | "md"
+            | "markdown"
+            | "rs"
+            | "toml"
+            | "json"
+            | "yaml"
+            | "yml"
+            | "xml"
+            | "html"
+            | "htm"
+            | "css"
+            | "js"
+            | "ts"
+            | "jsx"
+            | "tsx"
+            | "py"
+            | "go"
+            | "java"
+            | "c"
+            | "h"
+            | "cpp"
+            | "hpp"
+            | "cs"
+            | "sql"
+            | "log"
+            | "ini"
+            | "cfg"
+            | "csv"
+            | "bat"
+            | "ps1"
+            | "sh"
     ) {
         return Ok(PreviewData::Unsupported(
             "Não há pré-visualizador para esse formato.".to_owned(),
@@ -69,9 +97,8 @@ pub fn read_preview(path: &Path) -> io::Result<PreviewData> {
             "Este arquivo parece ser binário.".to_owned(),
         ));
     }
-    let content = String::from_utf8(data).map_err(|_| {
-        io::Error::new(ErrorKind::InvalidData, "Texto não codificado em UTF-8")
-    })?;
+    let content = String::from_utf8(data)
+        .map_err(|_| io::Error::new(ErrorKind::InvalidData, "Texto não codificado em UTF-8"))?;
     Ok(PreviewData::Text {
         content,
         truncated: metadata.len() > TEXT_LIMIT,
