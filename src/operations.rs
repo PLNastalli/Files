@@ -113,6 +113,79 @@ pub fn move_into(source: &Path, destination_directory: &Path) -> io::Result<Path
     Ok(destination)
 }
 
+/// Rename a selected group using a numbered prefix, preserving file extensions.
+///
+/// Example: `Foto` -> `Foto 001.jpg`, `Foto 002.png`.
+/// Target existence and source paths are preflighted first. On a later error,
+/// the routine attempts to revert successful renames, but rollback may fail
+/// (e.g. due to concurrent mutations); do not rely on this as a transaction.
+pub fn batch_rename_numbered(sources: &[PathBuf], prefix: &str) -> io::Result<Vec<PathBuf>> {
+    validate_name(prefix)?;
+    if sources.is_empty() {
+        return Err(io::Error::new(ErrorKind::InvalidInput, "Nenhum item selecionado"));
+    }
+    let mut proposals = Vec::with_capacity(sources.len());
+    let mut used = std::collections::HashSet::new();
+    let mut common_parent = None;
+    for (index, source) in sources.iter().enumerate() {
+        let metadata = fs::symlink_metadata(source)?;
+        if metadata.file_type().is_symlink() {
+            return Err(io::Error::new(ErrorKind::InvalidInput, "Links simbólicos não são suportados em lote"));
+        }
+        let parent = source.parent().ok_or_else(|| {
+            io::Error::new(ErrorKind::InvalidInput, "Item sem pasta pai")
+        })?;
+        let canonical = fs::canonicalize(parent)?;
+        if let Some(root) = &common_parent {
+            if root != &canonical {
+                return Err(io::Error::new(ErrorKind::InvalidInput, "Os itens precisam estar na mesma pasta"));
+            }
+        } else {
+            common_parent = Some(canonical);
+        }
+        let extension = if metadata.is_dir() {
+            String::new()
+        } else {
+            source.extension().filter(|value| !value.is_empty())
+                .map(|ext| format!(".{}", ext.to_string_lossy()))
+                .unwrap_or_default()
+        };
+        let name = format!("{prefix} {:03}{extension}", index + 1);
+        validate_name(&name)?;
+        let target = parent.join(name);
+        if !used.insert(target.to_string_lossy().to_lowercase()) {
+            return Err(io::Error::new(ErrorKind::AlreadyExists, "Nomes gerados repetidos"));
+        }
+        if target != *source && fs::symlink_metadata(&target).is_ok() {
+            return Err(io::Error::new(ErrorKind::AlreadyExists, "Um nome gerado já existe"));
+        }
+        proposals.push((source.clone(), target));
+    }
+    let mut completed: Vec<(PathBuf, PathBuf)> = Vec::new();
+    for (source, target) in proposals {
+        if source == target {
+            completed.push((source, target));
+            continue;
+        }
+        if let Err(error) = fs::rename(&source, &target) {
+            let mut rollback_failed = false;
+            for (original, renamed) in completed.into_iter().rev() {
+                if renamed != original && fs::rename(renamed, original).is_err() {
+                    rollback_failed = true;
+                }
+            }
+            if rollback_failed {
+                return Err(io::Error::other(format!(
+                    "Renomeação falhou e a reversão foi incompleta: {error}"
+                )));
+            }
+            return Err(error);
+        }
+        completed.push((source, target));
+    }
+    Ok(completed.into_iter().map(|(_, new_path)| new_path).collect())
+}
+
 fn spreadsheet_safe(value: &str) -> String {
     if matches!(
         value.chars().next(),
@@ -230,6 +303,35 @@ mod tests {
             move_into(&b, &inside).unwrap_err().kind(),
             ErrorKind::InvalidInput
         );
+    }
+
+    #[test]
+    fn batch_rename_preserves_extensions_and_numbering() {
+        let tmp = tempdir().unwrap();
+        let a = tmp.path().join("a.png");
+        let b = tmp.path().join("b.jpg");
+        fs::write(&a, "a").unwrap();
+        fs::write(&b, "b").unwrap();
+        let result = batch_rename_numbered(&[a, b], "Foto").unwrap();
+        assert_eq!(result[0].file_name().unwrap(), "Foto 001.png");
+        assert_eq!(result[1].file_name().unwrap(), "Foto 002.jpg");
+        assert_eq!(fs::read_to_string(&result[1]).unwrap(), "b");
+    }
+
+    #[test]
+    fn batch_rename_preflights_conflicts_without_changes() {
+        let tmp = tempdir().unwrap();
+        let a = tmp.path().join("a.txt");
+        let b = tmp.path().join("b.txt");
+        fs::write(&a, "a").unwrap();
+        fs::write(&b, "b").unwrap();
+        fs::write(tmp.path().join("Foto 002.txt"), "existing").unwrap();
+        assert_eq!(
+            batch_rename_numbered(&[a.clone(), b.clone()], "Foto")
+                .unwrap_err().kind(),
+            ErrorKind::AlreadyExists
+        );
+        assert!(a.exists() && b.exists());
     }
 
     #[test]
