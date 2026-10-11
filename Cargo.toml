@@ -7,8 +7,7 @@ description = "A fast, native Rust file manager powered by GPUI"
 license = "MIT"
 
 [dependencies]
-gpui = { git = "https://github.com/zed-industries/zed", rev = "93d745668805029476e6d7fbb19652116fed51de" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "93d745668805029476e6d7fbb19652116fed51de", features = ["font-kit", "wayland", "x11"] }
+gpui-kit = "=0.7.1"
 notify = "8"
 walkdir = "2.5"
 trash = "5"
