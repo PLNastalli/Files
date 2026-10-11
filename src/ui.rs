@@ -118,6 +118,18 @@ impl FilesApp {
                     .on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))),
             )
             .child(
+                Button::new("cut").ghost().icon(IconName::Scissors)
+                    .tooltip("Recortar (Ctrl+X)")
+                    .disabled(self.selected.is_none())
+                    .on_click(cx.listener(|this, _, _, cx| this.cut_selected(cx))),
+            )
+            .child(
+                Button::new("rename").ghost().icon(IconName::FilePen)
+                    .label("Renomear")
+                    .disabled(self.selected.is_none())
+                    .on_click(cx.listener(|this, _, window, cx| this.begin_rename(window, cx))),
+            )
+            .child(
                 Button::new("paste")
                     .ghost()
                     .icon(IconName::ClipboardPaste)
@@ -161,6 +173,12 @@ impl FilesApp {
                     .label("Exibir")
                     .on_click(cx.listener(|this, _, _, cx| this.toggle_view(cx))),
             )
+            .child(
+                Button::new("export-csv").ghost().icon(IconName::FileDown)
+                    .label("Exportar CSV")
+                    .disabled(self.transfer_in_progress)
+                    .on_click(cx.listener(|this, _, _, cx| this.export_listing(cx))),
+            )
             .content(div().flex_1())
             .child(
                 Button::new("details")
@@ -199,6 +217,34 @@ impl FilesApp {
             .border_color(rgb(BORDER))
             .bg(rgb(TOOLBAR_BG))
             .child(bar)
+    }
+
+    fn rename_bar(&mut self, cx: &mut Context<Self>) -> Div {
+        let mut bar = div();
+        if self.rename_target.is_some() {
+            bar = bar
+                .h(px(56.))
+                .px_5()
+                .flex()
+                .items_center()
+                .gap_3()
+                .border_b_1()
+                .border_color(rgb(BORDER))
+                .bg(rgb(TOOLBAR_BG))
+                .child(div().text_sm().child("Novo nome:"))
+                .child(
+                    div().w(px(360.)).child(Input::new(&self.rename_input)),
+                )
+                .child(
+                    Button::new("rename-save").icon(IconName::Check).label("Salvar")
+                        .on_click(cx.listener(|this, _, _, cx| this.confirm_rename(cx))),
+                )
+                .child(
+                    Button::new("rename-cancel").ghost().icon(IconName::X).label("Cancelar")
+                        .on_click(cx.listener(|this, _, _, cx| this.cancel_rename(cx))),
+                );
+        }
+        bar
     }
 
     fn sidebar(&mut self, cx: &mut Context<Self>) -> Sidebar<SidebarGroup<SidebarMenu>> {
@@ -618,6 +664,9 @@ impl Render for FilesApp {
             .on_action(cx.listener(|this, _: &NewFolder, _, cx| this.create_folder(cx)))
             .on_action(cx.listener(|this, _: &Copy, _, cx| this.copy_selected(cx)))
             .on_action(cx.listener(|this, _: &Paste, _, cx| this.paste(cx)))
+            .on_action(cx.listener(|this, _: &Cut, _, cx| this.cut_selected(cx)))
+            .on_action(cx.listener(|this, _: &Rename, window, cx| this.begin_rename(window, cx)))
+            .on_action(cx.listener(|this, _: &ExportCsv, _, cx| this.export_listing(cx)))
             .on_action(cx.listener(|this, _: &Delete, _, cx| this.request_trash(cx)))
             .on_action(cx.listener(|this, _: &OpenSelected, _, cx| {
                 if let Some(path) = this.selected.clone() {
@@ -661,6 +710,7 @@ impl Render for FilesApp {
             .child(self.tab_strip(cx))
             .child(self.navigation(cx))
             .child(self.toolbar(cx))
+            .child(self.rename_bar(cx))
             .child(
                 div()
                     .flex_1()
