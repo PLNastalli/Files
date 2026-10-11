@@ -363,6 +363,7 @@ impl FilesApp {
             });
 
         div()
+            .id("sidebar-scroll")
             .w(px(220.))
             .flex_shrink_0()
             .h_full()
@@ -462,6 +463,7 @@ impl FilesApp {
         });
 
         div()
+            .id("file-list-scroll")
             .flex_1()
             .min_h_0()
             .overflow_y_scroll()
