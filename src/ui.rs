@@ -41,7 +41,7 @@ impl FilesApp {
                 .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx))))
             .content(div().w(px(1.)).h(px(22.)).bg(cx.theme().border))
             .child(Button::new("sort")
-                .icon(IconName::ArrowDownAZ)
+                .icon(IconName::ArrowDownAz)
                 .label("Ordenar")
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.sort = this.sort.next();
