@@ -8,7 +8,7 @@ Last manually reviewed: October 2026. Status describes source implementation, no
 | --- | --- | --- |
 | Tabs | Partial | Multiple tabs and switching; drag to detach, per-tab history and middle-click open are missing |
 | Combined navigation / tree content | Not implemented | Expandable hierarchy, virtualized subtrees, keyboard navigation |
-| Batch rename with formulas | Not implemented | Preview, validated templates, batch atomicity/recovery |
+| Batch rename with formulas | Partial | Numbered prefix rename for Ctrl-selected items, conflict preflight; full formula parser, preview and guaranteed rollback missing |
 | Standard Windows context menu | Not implemented | Shell COM integration and application-custom menu configuration |
 | Custom context menu expressions | Not implemented | Safely modeled actions and arguments, opt-in execution |
 | Basic columns (name, type, size, dates) | Partial | Name/type/size/modified available; created date and column customization missing |
@@ -20,11 +20,11 @@ Last manually reviewed: October 2026. Status describes source implementation, no
 | Save/load layout | Not implemented | Versioned config file with migration and defaults |
 | Tree sorting | Not implemented | Expandable tree with sort model |
 | Windows drag-and-drop | Not implemented | OLE IDataObject, external drags, move/copy rules |
-| Row numbers | Not implemented | Index column and persisted toggle |
+| Row numbers | Partial | Toggleable row-number column in Details view; persistence not implemented |
 | Print and export | Partial | CSV export only; print and PDF/Excel not available |
 | Themes | Partial | Windows 11-inspired light palette; no other themes or system-follow |
 | Create folder | Implemented, test required | Name conflicts handled |
-| Rename (single) | Implemented, test required | Inline edit + conflict validation; still lacks full Shell semantics |
+| Rename (single) | Implemented, test required | Inline editor + Windows name validation; still lacks full Shell semantics |
 | Copy (single) | Implemented, test required | Background copy, no progress/cancel or atomic recovery |
 | Cut/move (single) | Implemented, test required | Same-volume rename only; cross-volume workflow missing |
 | Trash | Implemented, test required | One selected item, confirmation and OS recycle bin |
