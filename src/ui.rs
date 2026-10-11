@@ -13,7 +13,6 @@ use gpui_kit::component::{
     sidebar::{Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
     status_bar::StatusBar,
     tab::{Tab, TabBar},
-    toolbar::Toolbar,
 };
 use gpui_kit::{ClickEvent, Div, Render, div, prelude::*, rgb};
 use std::path::Path;
@@ -44,6 +43,17 @@ fn modified_date(entry: &FileEntry) -> String {
             datetime.format("%d/%m/%Y %H:%M").to_string()
         })
         .unwrap_or_else(|| "—".to_owned())
+}
+
+/// Thin Ribbon group: command area above, small caption along the lower edge,
+/// separated from neighbouring groups like the DevExpress Office ribbon.
+fn ribbon_group(label: &'static str, content: impl IntoElement) -> Div {
+    div().h_full().px_3().pt_2()
+        .border_r_1().border_color(rgb(BORDER))
+        .flex().flex_col().justify_between()
+        .child(div().flex_1().flex().items_center().justify_center().child(content))
+        .child(div().h(px(21.)).flex().items_center().justify_center()
+            .text_xs().text_color(rgb(SECONDARY)).child(label))
 }
 
 impl FilesApp {
@@ -99,137 +109,180 @@ impl FilesApp {
             )
     }
 
-    fn toolbar(&mut self, cx: &mut Context<Self>) -> Div {
-        let mut bar = Toolbar::new("explorer-commands")
+    /// A ribbon mirrors the reference WPF application's Home/View/Themes pages.
+    /// Each visible command is backed by a real action, not decorative UI.
+    fn ribbon(&mut self, cx: &mut Context<Self>) -> Div {
+        let tabs = div()
+            .h(px(32.))
+            .flex()
+            .items_center()
+            .bg(rgb(CANVAS))
+            .border_b_1()
+            .border_color(rgb(BORDER))
             .child(
-                Button::new("new-directory")
-                    .ghost()
-                    .icon(IconName::FolderPlus)
-                    .label("Novo")
-                    .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx))),
-            )
-            .content(div().w(px(1.)).h(px(23.)).mx_2().bg(rgb(BORDER)))
-            .child(
-                Button::new("copy")
-                    .ghost()
-                    .icon(IconName::Copy)
-                    .tooltip("Copiar (Ctrl+C)")
-                    .disabled(self.selected.is_none())
-                    .on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))),
-            )
-            .child(
-                Button::new("cut")
-                    .ghost()
-                    .icon(IconName::Scissors)
-                    .tooltip("Recortar (Ctrl+X)")
-                    .disabled(self.selected.is_none())
-                    .on_click(cx.listener(|this, _, _, cx| this.cut_selected(cx))),
+                div().id("ribbon-home").h_full().px_5()
+                    .flex().items_center().cursor_pointer()
+                    .text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(rgb(if self.ribbon_page == RibbonPage::Home { 0x0067C0 } else { TEXT }))
+                    .border_b_2().border_color(rgb(if self.ribbon_page == RibbonPage::Home { 0x0078D4 } else { CANVAS }))
+                    .child("Início")
+                    .on_click(cx.listener(|this, _, _, cx| this.show_ribbon(RibbonPage::Home, cx))),
             )
             .child(
-                Button::new("rename")
-                    .ghost()
-                    .icon(IconName::FilePen)
-                    .label("Renomear")
-                    .disabled(self.selected.is_none())
-                    .on_click(cx.listener(|this, _, window, cx| this.begin_rename(window, cx))),
+                div().id("ribbon-view").h_full().px_5()
+                    .flex().items_center().cursor_pointer()
+                    .text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(rgb(if self.ribbon_page == RibbonPage::View { 0x0067C0 } else { TEXT }))
+                    .border_b_2().border_color(rgb(if self.ribbon_page == RibbonPage::View { 0x0078D4 } else { CANVAS }))
+                    .child("Exibir")
+                    .on_click(cx.listener(|this, _, _, cx| this.show_ribbon(RibbonPage::View, cx))),
             )
             .child(
-                Button::new("paste")
-                    .ghost()
-                    .icon(IconName::ClipboardPaste)
-                    .tooltip("Colar (Ctrl+V)")
-                    .disabled(self.copied.is_none() || self.transfer_in_progress)
-                    .on_click(cx.listener(|this, _, _, cx| this.paste(cx))),
-            )
-            .child(
-                Button::new("trash")
-                    .ghost()
-                    .icon(IconName::Trash)
-                    .tooltip("Enviar para a Lixeira")
-                    .disabled(self.selected.is_none())
-                    .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx))),
-            )
-            .content(div().w(px(1.)).h(px(23.)).mx_2().bg(rgb(BORDER)))
-            .child(
-                Button::new("sort")
-                    .ghost()
-                    .icon(IconName::ArrowDownAZ)
-                    .label("Classificar")
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.sort = this.sort.next();
-                        this.reload(cx);
-                    })),
-            )
-            .child(
-                Button::new("hidden")
-                    .ghost()
-                    .icon(IconName::Eye)
-                    .label("Ocultos")
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.show_hidden = !this.show_hidden;
-                        this.reload(cx);
-                    })),
-            )
-            .child(
-                Button::new("view")
-                    .ghost()
-                    .icon(IconName::LayoutGrid)
-                    .label("Exibir")
-                    .on_click(cx.listener(|this, _, _, cx| this.toggle_view(cx))),
-            )
-            .child(
-                Button::new("row-numbers")
-                    .ghost()
-                    .icon(IconName::ListOrdered)
-                    .label("Linhas")
-                    .on_click(cx.listener(|this, _, _, cx| this.toggle_row_numbers(cx))),
-            )
-            .child(
-                Button::new("export-csv")
-                    .ghost()
-                    .icon(IconName::FileDown)
-                    .label("Exportar CSV")
-                    .disabled(self.transfer_in_progress)
-                    .on_click(cx.listener(|this, _, _, cx| this.export_listing(cx))),
-            )
-            .content(div().flex_1())
-            .child(
-                Button::new("details")
-                    .ghost()
-                    .icon(IconName::PanelRight)
-                    .label("Detalhes")
-                    .on_click(cx.listener(|this, _, _, cx| this.toggle_details(cx))),
+                div().id("ribbon-themes").h_full().px_5()
+                    .flex().items_center().cursor_pointer()
+                    .text_sm().font_weight(gpui_kit::FontWeight::MEDIUM)
+                    .text_color(rgb(if self.ribbon_page == RibbonPage::Themes { 0x0067C0 } else { TEXT }))
+                    .border_b_2().border_color(rgb(if self.ribbon_page == RibbonPage::Themes { 0x0078D4 } else { CANVAS }))
+                    .child("Temas")
+                    .on_click(cx.listener(|this, _, _, cx| this.show_ribbon(RibbonPage::Themes, cx))),
             );
+        let mut groups = div().h(px(100.)).px_2().flex().items_stretch()
+            .bg(rgb(TOOLBAR_BG)).border_b_1().border_color(rgb(BORDER));
 
+        match self.ribbon_page {
+            RibbonPage::Home => {
+                groups = groups
+                    .child(ribbon_group("Área de transferência",
+                        div().flex().items_center().gap_1()
+                            .child(Button::new("home-paste").ghost().icon(IconName::ClipboardPaste)
+                                .label("Colar")
+                                .disabled(self.copied.is_none() || self.transfer_in_progress)
+                                .on_click(cx.listener(|this, _, _, cx| this.paste(cx))))
+                            .child(div().flex().flex_col().gap_1()
+                                .child(Button::new("home-copy").ghost().icon(IconName::Copy)
+                                    .label("Copiar").disabled(self.selected.is_none())
+                                    .on_click(cx.listener(|this, _, _, cx| this.copy_selected(cx))))
+                                .child(Button::new("home-cut").ghost().icon(IconName::Scissors)
+                                    .label("Recortar").disabled(self.selected.is_none())
+                                    .on_click(cx.listener(|this, _, _, cx| this.cut_selected(cx))))),
+                    ))
+                    .child(ribbon_group("Organizar",
+                        div().flex().flex_col().gap_1()
+                            .child(Button::new("home-rename").ghost().icon(IconName::FilePen)
+                                .label("Renomear").disabled(self.selected.is_none())
+                                .on_click(cx.listener(|this, _, window, cx| this.begin_rename(window, cx))))
+                            .child(Button::new("home-trash").ghost().icon(IconName::Trash)
+                                .label("Excluir").disabled(self.selected.is_none())
+                                .on_click(cx.listener(|this, _, _, cx| this.request_trash(cx)))),
+                    ))
+                    .child(ribbon_group("Novo",
+                        div().flex().items_center()
+                            .child(Button::new("home-new-folder").ghost().icon(IconName::FolderPlus)
+                                .label("Nova pasta")
+                                .on_click(cx.listener(|this, _, _, cx| this.create_folder(cx)))),
+                    ))
+                    .child(ribbon_group("Abrir",
+                        div().flex().items_center()
+                            .child(Button::new("home-open").ghost().icon(IconName::FolderOpen)
+                                .label("Abrir").disabled(self.selected.is_none())
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if let Some(path) = this.selected.clone() {
+                                        this.open_entry(path, cx);
+                                    }
+                                }))),
+                    ))
+                    .child(ribbon_group("Selecionar",
+                        div().flex().flex_col().gap_1()
+                            .child(Button::new("select-all").ghost().icon(IconName::ListChecks)
+                                .label("Selecionar tudo")
+                                .on_click(cx.listener(|this, _, _, cx| this.select_all(cx))))
+                            .child(Button::new("select-none").ghost().icon(IconName::ListX)
+                                .label("Limpar seleção")
+                                .on_click(cx.listener(|this, _, _, cx| this.clear_selection(cx))))
+                            .child(Button::new("select-invert").ghost().icon(IconName::CheckCheck)
+                                .label("Inverter")
+                                .on_click(cx.listener(|this, _, _, cx| this.invert_selection(cx)))),
+                    ));
+            }
+            RibbonPage::View => {
+                groups = groups
+                    .child(ribbon_group("Painéis",
+                        div().flex().flex_col().gap_1()
+                            .child(Button::new("view-navigation").ghost().icon(IconName::PanelLeft)
+                                .label(if self.show_navigation { "Ocultar árvore" } else { "Painel de navegação" })
+                                .on_click(cx.listener(|this, _, _, cx| this.toggle_navigation(cx))))
+                            .child(Button::new("view-details").ghost().icon(IconName::PanelRight)
+                                .label(if self.details_open { "Ocultar detalhes" } else { "Painel de detalhes" })
+                                .on_click(cx.listener(|this, _, _, cx| this.toggle_details(cx)))),
+                    ))
+                    .child(ribbon_group("Layout",
+                        div().flex().flex_col().gap_1()
+                            .child(Button::new("view-table").ghost().icon(IconName::List)
+                                .label("Detalhes")
+                                .on_click(cx.listener(|this, _, _, cx| this.set_view_mode(ViewMode::Details, cx))))
+                            .child(Button::new("view-tiles").ghost().icon(IconName::LayoutGrid)
+                                .label("Blocos")
+                                .on_click(cx.listener(|this, _, _, cx| this.set_view_mode(ViewMode::Tiles, cx)))),
+                    ))
+                    .child(ribbon_group("Exibir / ocultar",
+                        div().flex().flex_col().gap_1()
+                            .child(Button::new("view-hidden").ghost().icon(IconName::Eye)
+                                .label(if self.show_hidden { "Ocultos: sim" } else { "Itens ocultos" })
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.show_hidden = !this.show_hidden;
+                                    this.reload(cx);
+                                })))
+                            .child(Button::new("view-row-numbers").ghost().icon(IconName::ListOrdered)
+                                .label(if self.show_row_numbers { "Números: sim" } else { "Números de linha" })
+                                .on_click(cx.listener(|this, _, _, cx| this.toggle_row_numbers(cx)))),
+                    ))
+                    .child(ribbon_group("Organizar",
+                        div().flex().items_center()
+                            .child(Button::new("view-sort").ghost().icon(IconName::ArrowDownAZ)
+                                .label(format!("Classificar: {}", self.sort.label()))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.sort = this.sort.next();
+                                    this.reload(cx);
+                                }))),
+                    ))
+                    .child(ribbon_group("Exportar",
+                        div().flex().items_center()
+                            .child(Button::new("view-export").ghost().icon(IconName::FileDown)
+                                .label("Exportar CSV").disabled(self.transfer_in_progress)
+                                .on_click(cx.listener(|this, _, _, cx| this.export_listing(cx)))),
+                    ));
+            }
+            RibbonPage::Themes => {
+                groups = groups
+                    .child(ribbon_group("Tema do Windows",
+                        div().flex().items_center().gap_2()
+                            .child(Button::new("theme-win11").icon(IconName::Sun)
+                                .label("Windows 11 claro")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    Theme::change(ThemeMode::Light, None, cx);
+                                    this.status = "Tema Windows 11 claro selecionado".to_owned();
+                                    cx.notify();
+                                }))),
+                    ))
+                    .child(div().flex().items_center().px_4().text_xs()
+                        .text_color(rgb(SECONDARY))
+                        .child("Outros temas da referência ainda não foram implementados."));
+            }
+        }
         if self.confirm_trash {
-            bar = bar
-                .child(
-                    Button::new("confirm-trash")
-                        .icon(IconName::Check)
-                        .label("Confirmar")
-                        .on_click(cx.listener(|this, _, _, cx| this.confirm_trash(cx))),
-                )
-                .child(
-                    Button::new("cancel-trash")
-                        .ghost()
-                        .icon(IconName::X)
-                        .label("Cancelar")
+            groups = groups.child(ribbon_group("Confirmar exclusão",
+                div().flex().items_center().gap_1()
+                    .child(Button::new("trash-confirm").icon(IconName::Check).label("Enviar à Lixeira")
+                        .on_click(cx.listener(|this, _, _, cx| this.confirm_trash(cx))))
+                    .child(Button::new("trash-cancel").ghost().icon(IconName::X).label("Cancelar")
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.confirm_trash = false;
                             cx.notify();
-                        })),
-                );
+                        }))),
+            ));
         }
 
-        div()
-            .h(px(50.))
-            .px_4()
-            .flex()
-            .items_center()
-            .border_b_1()
-            .border_color(rgb(BORDER))
-            .bg(rgb(TOOLBAR_BG))
-            .child(bar)
+        div().flex().flex_col().child(tabs).child(groups)
     }
 
     fn rename_bar(&mut self, cx: &mut Context<Self>) -> Div {
@@ -737,8 +790,8 @@ impl Render for FilesApp {
                 ),
             )
             .child(self.tab_strip(cx))
+            .child(self.ribbon(cx))
             .child(self.navigation(cx))
-            .child(self.toolbar(cx))
             .child(self.rename_bar(cx))
             .child(
                 div()
