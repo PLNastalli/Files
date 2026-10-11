@@ -9,7 +9,7 @@ use std::{
 
 use files::filesystem::{self, FileEntry, SortBy};
 use gpui_kit::{
-    App, Bounds, Context, Entity, FocusHandle, KeyBinding, Subscription, Window,
+    App, AppContext, Bounds, Context, Entity, FocusHandle, KeyBinding, Subscription, Window,
     WindowBounds, WindowOptions, actions, px, size,
 };
 use gpui_kit::component::{
