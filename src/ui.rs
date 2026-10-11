@@ -10,7 +10,6 @@ use gpui_kit::component::{
     button::{Button, ButtonVariants as _},
     empty::{Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle},
     input::Input,
-    sidebar::{Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
     status_bar::StatusBar,
     tab::{Tab, TabBar},
 };
@@ -324,58 +323,68 @@ impl FilesApp {
         bar
     }
 
-    fn sidebar(&mut self, cx: &mut Context<Self>) -> Sidebar<SidebarGroup<SidebarMenu>> {
-        let locations = self
-            .shortcuts
-            .clone()
-            .into_iter()
-            .map(|(label, path)| {
-                let active = self.directory == path;
-                let icon = match label.as_str() {
-                    "Início" => IconName::House,
-                    "Área de Trabalho" => IconName::Monitor,
-                    "Documentos" => IconName::FileText,
-                    "Downloads" => IconName::Download,
-                    "Imagens" => IconName::Image,
-                    "Vídeos" => IconName::Clapperboard,
-                    "Músicas" => IconName::Music,
-                    text if text.starts_with("Disco") => IconName::HardDrive,
-                    _ => IconName::Folder,
-                };
-                SidebarMenuItem::new(label)
-                    .icon(icon)
-                    .active(active)
-                    .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
-            })
-            .collect::<Vec<_>>();
+    // The reference app has a file-tree pane, not a dashboard-style sidebar.
+    // Ancestors and immediate child folders form the visible navigation hierarchy.
+    fn navigation_tree(&mut self, cx: &mut Context<Self>) -> Div {
+        let quick_access = self.shortcuts.clone().into_iter().enumerate().map(|(index, (label, path))| {
+            let active = self.directory == path;
+            let icon = if label.starts_with("Disco") { IconName::HardDrive } else { IconName::Folder };
+            div().id(("quick-access", index))
+                .h(px(28.)).px_3().flex().items_center().gap_2()
+                .cursor_pointer().text_sm()
+                .text_color(rgb(TEXT))
+                .bg(rgb(if active { SELECTED } else { CANVAS }))
+                .hover(|style| style.bg(rgb(HOVER)))
+                .child(Icon::new(icon).small().text_color(rgb(0xD69E42)))
+                .child(label)
+                .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+        }).collect::<Vec<_>>();
 
-        Sidebar::new("explorer-sidebar")
-            .w(px(236.))
-            .header(
-                SidebarHeader::new().child(
-                    div()
-                        .w_full()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .px_2()
-                        .child(Icon::new(IconName::House).text_color(cx.theme().primary))
-                        .child(
-                            div()
-                                .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                .child("Início"),
-                        ),
-                ),
-            )
-            .child(SidebarGroup::new("ACESSO RÁPIDO").child(SidebarMenu::new().children(locations)))
-            .footer(
-                SidebarFooter::new().child(
-                    div()
-                        .text_xs()
-                        .text_color(cx.theme().muted_foreground)
-                        .child("Este computador"),
-                ),
-            )
+        let mut ancestry = self.directory.ancestors()
+            .filter(|path| !path.as_os_str().is_empty())
+            .map(Path::to_path_buf)
+            .collect::<Vec<_>>();
+        ancestry.reverse();
+        let ancestor_count = ancestry.len();
+        let mut tree_rows = ancestry.into_iter().enumerate().map(|(depth, path)| {
+            let active = path == self.directory;
+            div().id(("tree-ancestor", depth))
+                .h(px(29.)).pl(px(11. + depth.min(5) as f32 * 14.))
+                .pr_2().flex().items_center().gap_2()
+                .cursor_pointer().text_sm().text_color(rgb(TEXT))
+                .bg(rgb(if active { SELECTED } else { CANVAS }))
+                .hover(|style| style.bg(rgb(HOVER)))
+                .child(Icon::new(IconName::FolderOpen).small().text_color(rgb(0xD69E42)))
+                .child(display_name(&path))
+                .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+        }).collect::<Vec<_>>();
+
+        let direct_folders = self.entries.iter()
+            .filter(|entry| entry.kind == EntryKind::Folder)
+            .take(80)
+            .map(|entry| entry.path.clone())
+            .collect::<Vec<_>>();
+        tree_rows.extend(direct_folders.into_iter().enumerate().map(|(index, path)| {
+            div().id(("tree-child", index))
+                .h(px(29.)).pl(px(11. + ancestor_count.min(5) as f32 * 14.))
+                .pr_2().flex().items_center().gap_2()
+                .cursor_pointer().text_sm().text_color(rgb(TEXT))
+                .hover(|style| style.bg(rgb(HOVER)))
+                .child(Icon::new(IconName::Folder).small().text_color(rgb(0xD69E42)))
+                .child(display_name(&path))
+                .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+        }));
+
+        div().id("explorer-navigation-tree")
+            .w(px(224.)).flex_shrink_0().h_full()
+            .overflow_y_scroll()
+            .bg(rgb(CANVAS)).border_r_1().border_color(rgb(BORDER))
+            .child(div().h(px(30.)).px_3().flex().items_center().text_xs()
+                .text_color(rgb(SECONDARY)).child("Acesso rápido"))
+            .children(quick_access)
+            .child(div().h(px(34.)).px_3().pt_3().text_xs()
+                .text_color(rgb(SECONDARY)).child("Pastas"))
+            .children(tree_rows)
     }
 
     fn navigation(&mut self, cx: &mut Context<Self>) -> Div {
@@ -799,7 +808,7 @@ impl Render for FilesApp {
                     .min_h_0()
                     .flex()
                     .bg(rgb(CANVAS))
-                    .child(self.sidebar(cx))
+                    .when(self.show_navigation, |this| this.child(self.navigation_tree(cx)))
                     .child(
                         div()
                             .flex_1()
