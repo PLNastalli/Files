@@ -92,7 +92,7 @@ pub fn read_preview(path: &Path) -> io::Result<PreviewData> {
     // At most TEXT_LIMIT bytes are ever held in memory for text previews.
     let mut data = Vec::new();
     file.by_ref().take(TEXT_LIMIT).read_to_end(&mut data)?;
-    if data.iter().any(|byte| *byte == 0) {
+    if data.contains(&0) {
         return Ok(PreviewData::Unsupported(
             "Este arquivo parece ser binário.".to_owned(),
         ));
