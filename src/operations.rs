@@ -364,6 +364,7 @@ mod tests {
             kind: EntryKind::File,
             size: 3,
             modified: None,
+            created: None,
         };
         let first = export_csv(tmp.path(), std::slice::from_ref(&item)).unwrap();
         let second = export_csv(tmp.path(), &[item]).unwrap();
