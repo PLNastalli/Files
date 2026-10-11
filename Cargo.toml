@@ -1,0 +1,21 @@
+[package]
+name = "files"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "A fast, native Rust file manager powered by GPUI"
+license = "MIT"
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed", rev = "93d745668805029476e6d7fbb19652116fed51de" }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "93d745668805029476e6d7fbb19652116fed51de", features = ["font-kit", "wayland", "x11"] }
+notify = "8"
+walkdir = "2.5"
+trash = "5"
+open = "5"
+dirs = "6"
+tokio = { version = "1", features = ["rt-multi-thread", "fs", "sync"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 8
