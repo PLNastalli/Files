@@ -37,6 +37,8 @@ struct FilesApp {
     history_index: usize,
     selected: Option<PathBuf>,
     copied: Option<PathBuf>,
+    transfer_in_progress: bool,
+    transfer_task: Option<gpui_kit::Task<()>>,
     sort: SortBy,
     show_hidden: bool,
     confirm_trash: bool,
@@ -92,6 +94,8 @@ impl FilesApp {
             history_index: 0,
             selected: None,
             copied: None,
+            transfer_in_progress: false,
+            transfer_task: None,
             sort: SortBy::Name,
             show_hidden: false,
             confirm_trash: false,
@@ -155,12 +159,21 @@ impl FilesApp {
                 cx.background_executor().timer(Duration::from_millis(750)).await;
                 if view
                     .update(cx, |this, cx| {
-                        let changed = this
+                        let (changed, error) = this
                             .change_rx
                             .as_ref()
-                            .is_some_and(|rx| rx.try_iter().any(|event| event.is_ok()));
+                            .map(|rx| rx.try_iter().fold((false, None), |(changed, error), event| {
+                                match event {
+                                    Ok(_) => (true, error),
+                                    Err(reason) => (changed, Some(reason)),
+                                }
+                            }))
+                            .unwrap_or((false, None));
                         if changed {
                             this.reload(cx);
+                        }
+                        if let Some(error) = error {
+                            this.report_error("Monitor de arquivos", error, cx);
                         }
                     })
                     .is_err()
@@ -248,20 +261,41 @@ impl FilesApp {
     }
 
     fn paste(&mut self, cx: &mut Context<Self>) {
+        if self.transfer_in_progress {
+            return;
+        }
         let Some(source) = self.copied.clone() else {
             self.status = "Selecione um item e use Copiar primeiro.".to_owned();
             cx.notify();
             return;
         };
-        match filesystem::copy_into(&source, &self.directory) {
-            Ok(path) => {
-                self.reload(cx);
-                self.selected = Some(path);
-                self.status = "Cópia concluída".to_owned();
-                cx.notify();
-            }
-            Err(error) => self.report_error("Copiar", error, cx),
-        }
+        let destination = self.directory.clone();
+        self.transfer_in_progress = true;
+        self.status = "Copiando arquivos em segundo plano...".to_owned();
+        cx.notify();
+
+        self.transfer_task = Some(cx.spawn(async move |view, cx| {
+            let destination_for_copy = destination.clone();
+            let result = cx
+                .background_spawn(async move {
+                    filesystem::copy_into(&source, &destination_for_copy)
+                })
+                .await;
+            _ = view.update(cx, |this, cx| {
+                this.transfer_in_progress = false;
+                match result {
+                    Ok(path) => {
+                        if this.directory == destination {
+                            this.reload(cx);
+                            this.selected = Some(path);
+                        }
+                        this.status = "Cópia concluída".to_owned();
+                        cx.notify();
+                    }
+                    Err(error) => this.report_error("Copiar", error, cx),
+                }
+            });
+        }));
     }
 
     fn request_trash(&mut self, cx: &mut Context<Self>) {
@@ -307,7 +341,7 @@ impl FilesApp {
             .child(Button::new("paste")
                 .icon(IconName::ClipboardPaste)
                 .label("Colar")
-                .disabled(self.copied.is_none())
+                .disabled(self.copied.is_none() || self.transfer_in_progress)
                 .on_click(cx.listener(|this, _, _, cx| this.paste(cx))))
             .child(Button::new("trash")
                 .icon(IconName::Trash)
@@ -666,15 +700,18 @@ fn main() {
             ]);
 
             let bounds = Bounds::centered(None, size(px(1200.), px(760.)), cx);
-            gpui_kit::open_window(
+            if let Err(error) = gpui_kit::open_window(
                 WindowOptions {
                     window_bounds: Some(WindowBounds::Windowed(bounds)),
                     ..TitleBar::window_options()
                 },
                 cx,
                 |window, cx| cx.new(|cx| FilesApp::new(window, cx)),
-            )
-            .expect("Não foi possível abrir a janela");
+            ) {
+                eprintln!("Não foi possível abrir a janela: {error}");
+                cx.quit();
+                return;
+            }
             cx.activate(true);
         });
 }
