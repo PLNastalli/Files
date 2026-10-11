@@ -37,7 +37,10 @@ pub fn load(path: &Path) -> io::Result<Vec<PathBuf>> {
 /// Store the complete pin set. Windows directory names cannot contain linefeeds.
 pub fn save(path: &Path, pins: &[PathBuf]) -> io::Result<()> {
     let parent = path.parent().ok_or_else(|| {
-        io::Error::new(ErrorKind::InvalidInput, "Arquivo de configuração sem pasta pai")
+        io::Error::new(
+            ErrorKind::InvalidInput,
+            "Arquivo de configuração sem pasta pai",
+        )
     })?;
     fs::create_dir_all(parent)?;
     let mut contents = String::new();
@@ -45,11 +48,14 @@ pub fn save(path: &Path, pins: &[PathBuf]) -> io::Result<()> {
         if pinned.as_os_str().is_empty() {
             continue;
         }
-        let path = pinned.to_str().ok_or_else(|| {
-            io::Error::new(ErrorKind::InvalidData, "Caminho não é texto Unicode")
-        })?;
+        let path = pinned
+            .to_str()
+            .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "Caminho não é texto Unicode"))?;
         if path.contains('\n') || path.contains('\r') {
-            return Err(io::Error::new(ErrorKind::InvalidData, "Caminho contém quebra de linha"));
+            return Err(io::Error::new(
+                ErrorKind::InvalidData,
+                "Caminho contém quebra de linha",
+            ));
         }
         contents.push_str(path);
         contents.push('\n');

@@ -111,28 +111,39 @@ fn file_context_menu(
     is_pinned: bool,
 ) -> PopupMenu {
     let target = path.clone();
-    let mut menu = menu.min_w(px(235.))
-        .item(PopupMenuItem::new("Abrir").icon(IconName::FolderOpen)
+    let mut menu = menu.min_w(px(235.)).item(
+        PopupMenuItem::new("Abrir")
+            .icon(IconName::FolderOpen)
             .on_click(window.listener_for(view, move |this, _, _, cx| {
                 this.open_entry(target.clone(), cx);
-            })));
+            })),
+    );
     if is_folder {
         let target = path.clone();
-        menu = menu.item(PopupMenuItem::new("Abrir em nova aba").icon(IconName::Files)
-            .on_click(window.listener_for(view, move |this, _, _, cx| {
-                this.open_in_new_tab(target.clone(), cx);
-            })));
+        menu = menu.item(
+            PopupMenuItem::new("Abrir em nova aba")
+                .icon(IconName::Files)
+                .on_click(window.listener_for(view, move |this, _, _, cx| {
+                    this.open_in_new_tab(target.clone(), cx);
+                })),
+        );
         let target = path.clone();
         if is_pinned {
-            menu = menu.item(PopupMenuItem::new("Desafixar do Acesso rápido").icon(IconName::PinOff)
-                .on_click(window.listener_for(view, move |this, _, _, cx| {
-                    this.unpin_folder(&target, cx);
-                })));
+            menu = menu.item(
+                PopupMenuItem::new("Desafixar do Acesso rápido")
+                    .icon(IconName::PinOff)
+                    .on_click(window.listener_for(view, move |this, _, _, cx| {
+                        this.unpin_folder(&target, cx);
+                    })),
+            );
         } else {
-            menu = menu.item(PopupMenuItem::new("Fixar no Acesso rápido").icon(IconName::Pin)
-                .on_click(window.listener_for(view, move |this, _, _, cx| {
-                    this.pin_folder(target.clone(), cx);
-                })));
+            menu = menu.item(
+                PopupMenuItem::new("Fixar no Acesso rápido")
+                    .icon(IconName::Pin)
+                    .on_click(window.listener_for(view, move |this, _, _, cx| {
+                        this.pin_folder(target.clone(), cx);
+                    })),
+            );
         }
     }
     let copy_target = path.clone();
@@ -142,38 +153,56 @@ fn file_context_menu(
     let properties_target = path.clone();
     let clipboard_target = path.clone();
     menu.separator()
-        .item(PopupMenuItem::new("Copiar").icon(IconName::Copy)
-            .on_click(window.listener_for(view, move |this, _, _, cx| {
-                this.ensure_context_selection(&copy_target);
-                this.copy_selected(cx);
-            })))
-        .item(PopupMenuItem::new("Recortar").icon(IconName::Scissors)
-            .on_click(window.listener_for(view, move |this, _, _, cx| {
-                this.ensure_context_selection(&cut_target);
-                this.cut_selected(cx);
-            })))
-        .item(PopupMenuItem::new("Copiar caminho").icon(IconName::ClipboardCopy)
-            .on_click(move |_, _, cx| {
-                cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(
-                    clipboard_target.to_string_lossy().into_owned(),
-                ));
-            }))
+        .item(
+            PopupMenuItem::new("Copiar")
+                .icon(IconName::Copy)
+                .on_click(window.listener_for(view, move |this, _, _, cx| {
+                    this.ensure_context_selection(&copy_target);
+                    this.copy_selected(cx);
+                })),
+        )
+        .item(
+            PopupMenuItem::new("Recortar")
+                .icon(IconName::Scissors)
+                .on_click(window.listener_for(view, move |this, _, _, cx| {
+                    this.ensure_context_selection(&cut_target);
+                    this.cut_selected(cx);
+                })),
+        )
+        .item(
+            PopupMenuItem::new("Copiar caminho")
+                .icon(IconName::ClipboardCopy)
+                .on_click(move |_, _, cx| {
+                    cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(
+                        clipboard_target.to_string_lossy().into_owned(),
+                    ));
+                }),
+        )
         .separator()
-        .item(PopupMenuItem::new("Renomear").icon(IconName::FilePen)
-            .on_click(window.listener_for(view, move |this, _, window, cx| {
-                this.ensure_context_selection(&rename_target);
-                this.begin_rename(window, cx);
-            })))
-        .item(PopupMenuItem::new("Enviar para Lixeira").icon(IconName::Trash)
-            .on_click(window.listener_for(view, move |this, _, _, cx| {
-                this.ensure_context_selection(&delete_target);
-                this.request_trash(cx);
-            })))
+        .item(
+            PopupMenuItem::new("Renomear")
+                .icon(IconName::FilePen)
+                .on_click(window.listener_for(view, move |this, _, window, cx| {
+                    this.ensure_context_selection(&rename_target);
+                    this.begin_rename(window, cx);
+                })),
+        )
+        .item(
+            PopupMenuItem::new("Enviar para Lixeira")
+                .icon(IconName::Trash)
+                .on_click(window.listener_for(view, move |this, _, _, cx| {
+                    this.ensure_context_selection(&delete_target);
+                    this.request_trash(cx);
+                })),
+        )
         .separator()
-        .item(PopupMenuItem::new("Propriedades").icon(IconName::Info)
-            .on_click(window.listener_for(view, move |this, _, _, cx| {
-                this.show_properties(properties_target.clone(), cx);
-            })))
+        .item(
+            PopupMenuItem::new("Propriedades")
+                .icon(IconName::Info)
+                .on_click(window.listener_for(view, move |this, _, _, cx| {
+                    this.show_properties(properties_target.clone(), cx);
+                })),
+        )
 }
 
 impl FilesApp {
@@ -699,8 +728,7 @@ impl FilesApp {
         let view = cx.entity();
         let mut quick_access = Vec::new();
         let mut drives = Vec::new();
-        self
-            .shortcuts
+        self.shortcuts
             .clone()
             .into_iter()
             .enumerate()
@@ -735,26 +763,51 @@ impl FilesApp {
                         let new_tab = context_path.clone();
                         let unpin = context_path.clone();
                         let pin = context_path.clone();
-                        let mut menu = menu.min_w(px(220.))
-                            .item(PopupMenuItem::new("Abrir").icon(IconName::FolderOpen)
-                                .on_click(window.listener_for(&context_view, move |this, _, _, cx| {
-                                    this.navigate(open.clone(), cx);
-                                })))
-                            .item(PopupMenuItem::new("Abrir em nova aba").icon(IconName::Files)
-                                .on_click(window.listener_for(&context_view, move |this, _, _, cx| {
-                                    this.open_in_new_tab(new_tab.clone(), cx);
-                                })))
+                        let mut menu = menu
+                            .min_w(px(220.))
+                            .item(
+                                PopupMenuItem::new("Abrir")
+                                    .icon(IconName::FolderOpen)
+                                    .on_click(window.listener_for(
+                                        &context_view,
+                                        move |this, _, _, cx| {
+                                            this.navigate(open.clone(), cx);
+                                        },
+                                    )),
+                            )
+                            .item(
+                                PopupMenuItem::new("Abrir em nova aba")
+                                    .icon(IconName::Files)
+                                    .on_click(window.listener_for(
+                                        &context_view,
+                                        move |this, _, _, cx| {
+                                            this.open_in_new_tab(new_tab.clone(), cx);
+                                        },
+                                    )),
+                            )
                             .separator();
                         if pinned {
-                            menu = menu.item(PopupMenuItem::new("Desafixar do Acesso rápido").icon(IconName::PinOff)
-                                .on_click(window.listener_for(&context_view, move |this, _, _, cx| {
-                                    this.unpin_folder(&unpin, cx);
-                                })));
+                            menu = menu.item(
+                                PopupMenuItem::new("Desafixar do Acesso rápido")
+                                    .icon(IconName::PinOff)
+                                    .on_click(window.listener_for(
+                                        &context_view,
+                                        move |this, _, _, cx| {
+                                            this.unpin_folder(&unpin, cx);
+                                        },
+                                    )),
+                            );
                         } else {
-                            menu = menu.item(PopupMenuItem::new("Fixar no Acesso rápido").icon(IconName::Pin)
-                                .on_click(window.listener_for(&context_view, move |this, _, _, cx| {
-                                    this.pin_folder(pin.clone(), cx);
-                                })));
+                            menu = menu.item(
+                                PopupMenuItem::new("Fixar no Acesso rápido")
+                                    .icon(IconName::Pin)
+                                    .on_click(window.listener_for(
+                                        &context_view,
+                                        move |this, _, _, cx| {
+                                            this.pin_folder(pin.clone(), cx);
+                                        },
+                                    )),
+                            );
                         }
                         menu
                     });
@@ -851,8 +904,12 @@ impl FilesApp {
             )
             .children(quick_access)
             .child(
-                div().h(px(34.)).px_3().pt_3()
-                    .text_xs().text_color(rgb(SECONDARY))
+                div()
+                    .h(px(34.))
+                    .px_3()
+                    .pt_3()
+                    .text_xs()
+                    .text_color(rgb(SECONDARY))
                     .child("Este computador"),
             )
             .children(drives)

@@ -122,8 +122,12 @@ impl FilesApp {
             .unwrap_or_default();
         for path in &pinned {
             if !shortcuts.iter().any(|(_, entry)| entry == path) {
-                shortcuts.push((path.file_name().map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| path.display().to_string()), path.clone()));
+                shortcuts.push((
+                    path.file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| path.display().to_string()),
+                    path.clone(),
+                ));
             }
         }
         #[cfg(windows)]
@@ -367,7 +371,8 @@ impl FilesApp {
             self.pinned.push(path.clone());
         }
         if !self.shortcuts.iter().any(|(_, existing)| existing == &path) {
-            let label = path.file_name()
+            let label = path
+                .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_else(|| path.display().to_string());
             self.shortcuts.push((label, path));
