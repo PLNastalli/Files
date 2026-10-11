@@ -177,14 +177,12 @@ impl FilesApp {
         let (sender, receiver) = mpsc::channel();
         if let Ok(mut watcher) = notify::recommended_watcher(move |event| {
             let _ = sender.send(event);
-        }) {
-            if watcher
-                .watch(&self.directory, RecursiveMode::NonRecursive)
-                .is_ok()
-            {
-                self.watcher = Some(watcher);
-                self.change_rx = Some(receiver);
-            }
+        }) && watcher
+            .watch(&self.directory, RecursiveMode::NonRecursive)
+            .is_ok()
+        {
+            self.watcher = Some(watcher);
+            self.change_rx = Some(receiver);
         }
     }
 
