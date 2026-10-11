@@ -480,10 +480,19 @@ impl FilesApp {
         self.change_directory(path, cx);
     }
 
+    fn show_preview(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        if self.entries.iter().any(|entry| entry.path == path) {
+            self.set_selection(path);
+            self.preview_open = true;
+            self.refresh_preview(cx);
+        }
+    }
+
     fn show_properties(&mut self, path: PathBuf, cx: &mut Context<Self>) {
         if self.entries.iter().any(|entry| entry.path == path) {
             self.set_selection(path);
             self.details_open = true;
+            self.refresh_preview(cx);
             cx.notify();
         }
     }
