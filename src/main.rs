@@ -62,6 +62,7 @@ struct FilesApp {
     details_open: bool,
     view_mode: ViewMode,
     selected: Option<PathBuf>,
+    selected_paths: Vec<PathBuf>,
     copied: Option<PathBuf>,
     clipboard_cut: bool,
     rename_target: Option<PathBuf>,
@@ -129,6 +130,7 @@ impl FilesApp {
             details_open: false,
             view_mode: ViewMode::Details,
             selected: None,
+            selected_paths: Vec::new(),
             copied: None,
             clipboard_cut: false,
             rename_target: None,
@@ -155,18 +157,15 @@ impl FilesApp {
     fn reload(&mut self, cx: &mut Context<Self>) {
         match filesystem::read_directory(&self.directory, self.show_hidden, self.sort) {
             Ok(entries) => {
-                if self
-                    .selected
-                    .as_ref()
-                    .is_some_and(|path| !entries.iter().any(|entry| &entry.path == path))
-                {
-                    self.selected = None;
-                }
+                self.selected_paths
+                    .retain(|path| entries.iter().any(|entry| &entry.path == path));
+                self.selected = self.selected_paths.last().cloned();
                 self.status = format!("{} itens", entries.len());
                 self.entries = entries;
             }
             Err(error) => {
                 self.entries.clear();
+                self.selected_paths.clear();
                 self.selected = None;
                 self.status = format!("Erro ao abrir pasta: {error}");
             }
@@ -246,6 +245,7 @@ impl FilesApp {
             *tab = path.clone();
         }
         self.directory = path;
+        self.selected_paths.clear();
         self.selected = None;
         self.confirm_trash = false;
         self.rename_target = None;
@@ -319,6 +319,27 @@ impl FilesApp {
         cx.notify();
     }
 
+    fn select_entry(&mut self, path: PathBuf, additive: bool, cx: &mut Context<Self>) {
+        if additive {
+            if let Some(index) = self.selected_paths.iter().position(|item| item == &path) {
+                self.selected_paths.remove(index);
+            } else {
+                self.selected_paths.push(path);
+            }
+        } else {
+            self.selected_paths.clear();
+            self.selected_paths.push(path);
+        }
+        self.selected = self.selected_paths.last().cloned();
+        self.confirm_trash = false;
+        cx.notify();
+    }
+
+    fn set_selection(&mut self, path: PathBuf) {
+        self.selected_paths = vec![path.clone()];
+        self.selected = Some(path);
+    }
+
     fn open_entry(&mut self, path: PathBuf, cx: &mut Context<Self>) {
         if path.is_dir() {
             self.navigate(path, cx);
@@ -332,7 +353,7 @@ impl FilesApp {
         match filesystem::create_folder(&self.directory) {
             Ok(path) => {
                 self.reload(cx);
-                self.selected = Some(path);
+                self.set_selection(path);
                 self.status = "Pasta criada".to_owned();
                 cx.notify();
             }
@@ -362,11 +383,16 @@ impl FilesApp {
         let Some(path) = self.selected.clone() else {
             return;
         };
-        let Some(name) = path.file_name() else {
-            return;
+        let name = if self.selected_paths.len() > 1 {
+            "Arquivo".to_owned()
+        } else {
+            let Some(name) = path.file_name() else {
+                return;
+            };
+            name.to_string_lossy().into_owned()
         };
         self.rename_input.update(cx, |state, cx| {
-            state.set_value(name.to_string_lossy().as_ref(), window, cx);
+            state.set_value(name, window, cx);
         });
         self.rename_target = Some(path);
         cx.notify();
@@ -382,14 +408,24 @@ impl FilesApp {
             return;
         };
         let name = self.rename_input.read(cx).value().to_string();
-        match operations::rename_item(&source, &name) {
-            Ok(new_path) => {
+        let result = if self.selected_paths.len() > 1 {
+            operations::batch_rename_numbered(&self.selected_paths, &name)
+        } else {
+            operations::rename_item(&source, &name).map(|path| vec![path])
+        };
+        match result {
+            Ok(paths) => {
+                let count = paths.len();
                 self.reload(cx);
-                self.selected = Some(new_path);
-                self.status = "Item renomeado".to_owned();
+                self.selected = paths.last().cloned();
+                self.selected_paths = paths;
+                self.status = format!("{count} item(ns) renomeado(s)");
                 cx.notify();
             }
-            Err(error) => self.report_error("Renomear", error, cx),
+            Err(error) => {
+                self.reload(cx);
+                self.report_error("Renomear", error, cx);
+            }
         }
     }
 
@@ -457,7 +493,7 @@ impl FilesApp {
                         }
                         if this.directory == destination {
                             this.reload(cx);
-                            this.selected = Some(path);
+                            this.set_selection(path);
                         }
                         this.status = if cut {
                             "Movimentação concluída"
