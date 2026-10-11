@@ -337,7 +337,7 @@ impl FilesApp {
         row
     }
 
-    fn sidebar(&mut self, cx: &mut Context<Self>) -> Div {
+    fn sidebar(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let items = self
             .shortcuts
             .clone()
@@ -421,7 +421,7 @@ impl FilesApp {
             .children(crumbs)
     }
 
-    fn file_list(&mut self, cx: &mut Context<Self>) -> Div {
+    fn file_list(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let rows = self.entries.clone().into_iter().enumerate().map(|(index, entry)| {
             let is_selected = self.selected.as_ref() == Some(&entry.path);
             let icon = match entry.kind {
