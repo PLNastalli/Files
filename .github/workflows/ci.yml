@@ -12,15 +12,23 @@ concurrency:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Rust stable
+      - name: Install stable Rust and components
         uses: dtolnay/rust-toolchain@stable
-      - name: Cache
+        with:
+          components: rustfmt, clippy
+      - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
-      - name: Check desktop application
-        run: cargo check --bin files
-      - name: Test filesystem core
-        run: cargo test --lib
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Check all targets
+        run: cargo check --all-targets
+      - name: Clippy without warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Test all targets
+        run: cargo test --all-targets
+      - name: Build release binary
+        run: cargo build --release
