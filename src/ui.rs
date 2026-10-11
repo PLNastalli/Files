@@ -453,7 +453,10 @@ impl FilesApp {
                     ))
                     .child(ribbon_group(
                         "Novo",
-                        div().flex().flex_col().gap_1()
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
                             .child(
                                 Button::new("home-new-folder")
                                     .ghost()
@@ -466,7 +469,9 @@ impl FilesApp {
                                     .ghost()
                                     .icon(IconName::FilePlus)
                                     .label("Arquivo de texto")
-                                    .on_click(cx.listener(|this, _, _, cx| this.create_text_file(cx))),
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.create_text_file(cx)),
+                                    ),
                             ),
                     ))
                     .child(ribbon_group(

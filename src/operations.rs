@@ -53,10 +53,16 @@ pub fn validate_name(name: &str) -> io::Result<()> {
 /// Create a plain-text document with a collision-safe default name.
 pub fn create_text_file(directory: &Path) -> io::Result<PathBuf> {
     if !directory.is_dir() {
-        return Err(io::Error::new(ErrorKind::InvalidInput, "O destino não é uma pasta"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "O destino não é uma pasta",
+        ));
     }
     let path = filesystem::unique_copy_path(directory, OsStr::new("Novo arquivo.txt"), false)?;
-    OpenOptions::new().write(true).create_new(true).open(&path)?;
+    OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)?;
     Ok(path)
 }
 
