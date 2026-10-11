@@ -18,8 +18,8 @@ Files is an experimental GPU-rendered desktop file manager that combines an Expl
 | Navigation | Home and common-folder shortcuts, local drives, breadcrumbs, Back, Forward, Up, Refresh |
 | Directory listing | Name/size/modified ordering, folders first, optional hidden entries |
 | Search | Case-insensitive filter of the **current directory only**; no recursive index |
-| Explorer-like UI | Windows 11-inspired light palette, tabs, Details/Tiles, metadata panel, Ctrl-click selection and optional row numbers |
-| File handling | Open, create folder, rename one item, numbered batch rename, copy and same-volume cut/move, recycle bin |
+| Explorer-like UI | Windows 11-inspired light palette, Ribbon, tabs, Details/Tiles, metadata panel, Ctrl-click selection and optional row numbers |
+| File handling | Open, create folder, rename one item, numbered batch rename, copy and same-volume cut/move, recycle bin |\n| Context menu | GPUI Kit right-click on file rows/tiles with Open, Copy, Cut, Rename, Trash, Properties (metadata), Copy Path and pin folders |\n| Quick Access | Windows known folders, local drives, user-pinned folders saved under the user's configuration directory |
 | Export | Current directory listing to non-overwriting CSV (UTF-8 BOM; spreadsheet formula prefixes sanitized) |
 | Live updates | `notify` watches the current directory (non-recursive) |
 | Background work | One copy, move or CSV export task at a time; no progress or cancellation yet |
@@ -64,11 +64,11 @@ First builds may take several minutes because the GPUI UI toolkit has substantia
 | Ctrl + X | Cut selected item for same-volume move |
 | F2 | Rename one selected item; use a numbered prefix when multiple items are selected |
 | Ctrl + Shift + E | Export current folder listing as CSV |
-| Ctrl + T / Ctrl + W | Open a new tab / Close active tab |
+| Ctrl + T / Ctrl + W | Open a new tab / Close active tab |\n| Shift + Enter | Open a selected folder in a new tab |\n| Alt + Enter | Show metadata panel for selected item |\n| Ctrl + A | Select all items in current directory |\n| Escape | Clear file selection |
 | Ctrl + Shift + 1 | Switch between Details and Tiles |
 | Alt + Shift + P | Toggle metadata details panel |
 | Ctrl + Shift + L | Toggle row-number column |
-| Ctrl + click | Select or deselect multiple files for numbered batch renaming |
+| Ctrl + click | Select or deselect multiple files for numbered batch renaming |\n| Right-click file or folder | Open GPUI Kit context menu with file operations |
 | Enter | Open selected item |
 | Delete | Ask before sending selected item to Trash |
 | Ctrl + H | Toggle hidden files |
@@ -113,6 +113,8 @@ File handling deserves more scrutiny than a typical UI demo:
 - The file watcher monitors only the active folder; it does not build an index.
 - Very large directory listings are rendered eagerly, and browsing can still block the UI during metadata scans. Paging/virtualization and asynchronous scans are future work.
 - Filesystem paths are not a security boundary: do not treat this build as a sandbox for untrusted paths.
+
+**Right-click menu scope:** This is an application-level GPUI Kit menu, not the native Windows Shell menu. Third-party "Open with", context-menu extensions, ACL/property sheets, and thumbnail providers require separate OS integration. The Properties item currently opens Files' metadata panel. Quick Access pins persist, but special folders are resolved from Windows known-folder paths only.
 
 **For now, work on noncritical test data and keep independent backups.**
 
