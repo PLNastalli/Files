@@ -48,7 +48,8 @@ actions!(
         ToggleView,
         Cut,
         Rename,
-        ExportCsv
+        ExportCsv,
+        ToggleRowNumbers
     ]
 );
 
@@ -61,6 +62,7 @@ struct FilesApp {
     active_tab: usize,
     details_open: bool,
     view_mode: ViewMode,
+    show_row_numbers: bool,
     selected: Option<PathBuf>,
     selected_paths: Vec<PathBuf>,
     copied: Option<PathBuf>,
@@ -129,6 +131,7 @@ impl FilesApp {
             active_tab: 0,
             details_open: false,
             view_mode: ViewMode::Details,
+            show_row_numbers: false,
             selected: None,
             selected_paths: Vec::new(),
             copied: None,
@@ -308,6 +311,11 @@ impl FilesApp {
 
     fn toggle_details(&mut self, cx: &mut Context<Self>) {
         self.details_open = !self.details_open;
+        cx.notify();
+    }
+
+    fn toggle_row_numbers(&mut self, cx: &mut Context<Self>) {
+        self.show_row_numbers = !self.show_row_numbers;
         cx.notify();
     }
 
@@ -557,6 +565,7 @@ fn main() {
                 KeyBinding::new("ctrl-x", Cut, None),
                 KeyBinding::new("f2", Rename, None),
                 KeyBinding::new("ctrl-shift-e", ExportCsv, None),
+                KeyBinding::new("ctrl-shift-l", ToggleRowNumbers, None),
                 KeyBinding::new("ctrl-t", NewTab, None),
                 KeyBinding::new("ctrl-w", CloseTab, None),
                 KeyBinding::new("alt-shift-p", ToggleDetails, None),
