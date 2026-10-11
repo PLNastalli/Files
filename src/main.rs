@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use files::filesystem::{self, FileEntry, SortBy};
+use files::{filesystem::{self, FileEntry, SortBy}, operations};
 use gpui_kit::component::{
     Theme, ThemeMode, TitleBar,
     input::{InputEvent, InputState},
@@ -42,7 +42,10 @@ actions!(
         NewTab,
         CloseTab,
         ToggleDetails,
-        ToggleView
+        ToggleView,
+        Cut,
+        Rename,
+        ExportCsv
     ]
 );
 
@@ -57,6 +60,9 @@ struct FilesApp {
     view_mode: ViewMode,
     selected: Option<PathBuf>,
     copied: Option<PathBuf>,
+    clipboard_cut: bool,
+    rename_target: Option<PathBuf>,
+    rename_input: Entity<InputState>,
     transfer_in_progress: bool,
     transfer_task: Option<gpui_kit::Task<()>>,
     sort: SortBy,
@@ -101,6 +107,7 @@ impl FilesApp {
         let focus = cx.focus_handle();
         window.focus(&focus, cx);
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("Pesquisar nesta pasta"));
+        let rename_input = cx.new(|cx| InputState::new(window, cx).placeholder("Novo nome do arquivo"));
         let search_events = cx.subscribe_in(&search, window, |_, _, event: &InputEvent, _, cx| {
             if matches!(event, InputEvent::Change) {
                 cx.notify();
@@ -119,6 +126,9 @@ impl FilesApp {
             view_mode: ViewMode::Details,
             selected: None,
             copied: None,
+            clipboard_cut: false,
+            rename_target: None,
+            rename_input,
             transfer_in_progress: false,
             transfer_task: None,
             sort: SortBy::Name,
@@ -236,6 +246,7 @@ impl FilesApp {
         self.directory = path;
         self.selected = None;
         self.confirm_trash = false;
+        self.rename_target = None;
         self.reload(cx);
         self.watch_directory();
     }
@@ -330,9 +341,82 @@ impl FilesApp {
     fn copy_selected(&mut self, cx: &mut Context<Self>) {
         if let Some(path) = &self.selected {
             self.copied = Some(path.clone());
-            self.status = "Copiado. Abra outra pasta e clique em Colar.".to_string();
+            self.clipboard_cut = false;
+            self.status = "Copiado. Abra a pasta de destino e clique em Colar.".to_owned();
             cx.notify();
         }
+    }
+
+    fn cut_selected(&mut self, cx: &mut Context<Self>) {
+        if let Some(path) = &self.selected {
+            self.copied = Some(path.clone());
+            self.clipboard_cut = true;
+            self.status = "Recortado. Cole em outra pasta para mover.".to_owned();
+            cx.notify();
+        }
+    }
+
+    fn begin_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(path) = self.selected.clone() else {
+            return;
+        };
+        let Some(name) = path.file_name() else {
+            return;
+        };
+        self.rename_input.update(cx, |state, cx| {
+            state.set_value(name.to_string_lossy().as_ref(), window, cx);
+        });
+        self.rename_target = Some(path);
+        cx.notify();
+    }
+
+    fn cancel_rename(&mut self, cx: &mut Context<Self>) {
+        self.rename_target = None;
+        cx.notify();
+    }
+
+    fn confirm_rename(&mut self, cx: &mut Context<Self>) {
+        let Some(source) = self.rename_target.take() else {
+            return;
+        };
+        let name = self.rename_input.read(cx).value().to_string();
+        match operations::rename_item(&source, &name) {
+            Ok(new_path) => {
+                self.reload(cx);
+                self.selected = Some(new_path);
+                self.status = "Item renomeado".to_owned();
+                cx.notify();
+            }
+            Err(error) => self.report_error("Renomear", error, cx),
+        }
+    }
+
+    fn export_listing(&mut self, cx: &mut Context<Self>) {
+        if self.transfer_in_progress {
+            return;
+        }
+        let directory = self.directory.clone();
+        let snapshot = self.entries.clone();
+        self.transfer_in_progress = true;
+        self.status = "Exportando lista CSV...".to_owned();
+        cx.notify();
+        self.transfer_task = Some(cx.spawn(async move |view, cx| {
+            let result = cx.background_spawn(async move {
+                operations::export_csv(&directory, &snapshot)
+            }).await;
+            _ = view.update(cx, |this, cx| {
+                this.transfer_in_progress = false;
+                match result {
+                    Ok(path) => {
+                        this.status = format!("CSV exportado: {}", path.display());
+                        this.reload(cx);
+                        this.status = format!("CSV exportado: {}", path.display());
+                        cx.notify();
+                    }
+                    Err(error) => this.report_error("Exportar CSV", error, cx),
+                }
+            });
+        }));
     }
 
     fn paste(&mut self, cx: &mut Context<Self>) {
@@ -345,6 +429,7 @@ impl FilesApp {
             return;
         };
         let destination = self.directory.clone();
+        let cut = self.clipboard_cut;
         self.transfer_in_progress = true;
         self.status = "Copiando arquivos em segundo plano...".to_owned();
         cx.notify();
@@ -353,18 +438,28 @@ impl FilesApp {
             let destination_for_copy = destination.clone();
             let result = cx
                 .background_spawn(
-                    async move { filesystem::copy_into(&source, &destination_for_copy) },
+                    async move {
+                        if cut {
+                            operations::move_into(&source, &destination_for_copy)
+                        } else {
+                            filesystem::copy_into(&source, &destination_for_copy)
+                        }
+                    },
                 )
                 .await;
             _ = view.update(cx, |this, cx| {
                 this.transfer_in_progress = false;
                 match result {
                     Ok(path) => {
+                        if cut {
+                            this.copied = None;
+                            this.clipboard_cut = false;
+                        }
                         if this.directory == destination {
                             this.reload(cx);
                             this.selected = Some(path);
                         }
-                        this.status = "Cópia concluída".to_owned();
+                        this.status = if cut { "Movimentação concluída" } else { "Cópia concluída" }.to_owned();
                         cx.notify();
                     }
                     Err(error) => this.report_error("Copiar", error, cx),
@@ -418,6 +513,9 @@ fn main() {
                 KeyBinding::new("delete", Delete, None),
                 KeyBinding::new("enter", OpenSelected, None),
                 KeyBinding::new("ctrl-h", ToggleHidden, None),
+                KeyBinding::new("ctrl-x", Cut, None),
+                KeyBinding::new("f2", Rename, None),
+                KeyBinding::new("ctrl-shift-e", ExportCsv, None),
                 KeyBinding::new("ctrl-t", NewTab, None),
                 KeyBinding::new("ctrl-w", CloseTab, None),
                 KeyBinding::new("alt-shift-p", ToggleDetails, None),
