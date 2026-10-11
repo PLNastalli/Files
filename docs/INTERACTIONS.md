@@ -6,7 +6,7 @@ Files is a Windows-first GPUI Kit application. These controls are implemented in
 
 Right-click a file (in Details or Tiles) to see the **application's** context menu:
 
-- Open; for folders, Open in new tab
+- Open; for folders, Open in new tab; for files, Preview
 - Copy, Cut, Copy path to Windows clipboard
 - Rename; Move to Recycle Bin (confirmation required)
 - Properties (opens the metadata details pane)
@@ -40,3 +40,10 @@ The Ribbon's **Início** page offers New Folder and New Text File. Name conflict
 ## Still missing compared with the reference
 
 Native Shell context menus, drag-and-drop from Windows Explorer, externally interoperable file clipboard, advanced property sheets, recursive indexed search, full custom shortcut management, and previews for many document formats remain separate engineering tasks. See [FEATURE_PARITY.md](FEATURE_PARITY.md). Test against disposable files while the project remains pre-alpha.
+
+
+## File preview
+
+Use **Exibir → Pré-visualizar**, `Ctrl+Shift+P`, or right-click a file → **Pré-visualizar**. The panel updates with the selected file. Text files are read asynchronously with a hard limit of 64 KiB; unsupported formats show an explanation. PNG, JPEG, GIF, WebP and BMP use GPUI's local image viewer with a 24 MiB source-file limit. This is a read-only preview; huge images, corrupt image decoders and symlinks do not have a guaranteed renderer. PDF, Office, audio and video previews are not implemented.
+
+Manual verification is still required for preview updates, panel layout and mouse interactions. The code and unit tests alone do not prove visual correctness.
