@@ -50,6 +50,7 @@ pub struct FileEntry {
     pub kind: EntryKind,
     pub size: u64,
     pub modified: Option<SystemTime>,
+    pub created: Option<SystemTime>,
 }
 
 impl FileEntry {
@@ -90,6 +91,7 @@ pub fn read_directory(path: &Path, show_hidden: bool, sort: SortBy) -> io::Resul
             kind,
             size: metadata.len(),
             modified: metadata.modified().ok(),
+            created: metadata.created().ok(),
         });
     }
 
