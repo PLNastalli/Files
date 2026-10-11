@@ -13,7 +13,7 @@ use gpui_kit::component::{
     menu::{ContextMenuExt as _, PopupMenu, PopupMenuItem},
     status_bar::StatusBar,
 };
-use gpui_kit::{ClickEvent, Div, Render, Stateful, div, prelude::*, rgb};
+use gpui_kit::{ClickEvent, Div, ObjectFit, Render, Stateful, div, img, prelude::*, rgb};
 use std::path::Path;
 
 // Win11System is the reference application's default. These are approximations
@@ -555,6 +555,17 @@ impl FilesApp {
                                     .on_click(
                                         cx.listener(|this, _, _, cx| this.toggle_details(cx)),
                                     ),
+                            )
+                            .child(
+                                Button::new("view-preview")
+                                    .ghost()
+                                    .icon(IconName::Eye)
+                                    .label(if self.preview_open {
+                                        "Ocultar visualização"
+                                    } else {
+                                        "Pré-visualizar"
+                                    })
+                                    .on_click(cx.listener(|this, _, _, cx| this.toggle_preview(cx))),
                             ),
                     ))
                     .child(ribbon_group(
@@ -1221,6 +1232,73 @@ impl FilesApp {
             .child(list)
     }
 
+    fn preview_panel(&mut self) -> Div {
+        let mut pane = div()
+            .w(px(325.))
+            .h_full()
+            .flex_shrink_0()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .p_3()
+            .bg(rgb(SIDEBAR_BG))
+            .border_l_1()
+            .border_color(rgb(BORDER))
+            .child(
+                div()
+                    .h(px(34.))
+                    .flex()
+                    .items_center()
+                    .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                    .child("Pré-visualização"),
+            );
+
+        match self.preview_data.clone() {
+            Some(preview::PreviewData::Image(path)) => {
+                pane = pane
+                    .child(
+                        div().h(px(320.)).w_full().rounded_md().bg(rgb(CANVAS))
+                            .child(
+                                img(path)
+                                    .id("files-preview-image")
+                                    .w_full()
+                                    .h(px(320.))
+                                    .object_fit(ObjectFit::Contain)
+                                    .with_loading(|| div().p_3().child("Carregando imagem...").into_any_element())
+                                    .with_fallback(|| div().p_3().child("Imagem não disponível").into_any_element()),
+                            ),
+                    )
+                    .child(div().text_xs().text_color(rgb(SECONDARY))
+                        .child("Imagem local · somente leitura"));
+            }
+            Some(preview::PreviewData::Text { content, truncated }) => {
+                pane = pane
+                    .child(
+                        div().id("preview-text-scroller").flex_1().min_h_0()
+                            .overflow_y_scroll().p_2().bg(rgb(CANVAS))
+                            .border_1().border_color(rgb(BORDER))
+                            .child(div().text_xs().text_color(rgb(TEXT)).child(content)),
+                    )
+                    .when(truncated, |this| this.child(
+                        div().text_xs().text_color(rgb(SECONDARY))
+                            .child("Pré-visualização limitada aos primeiros 64 KiB."),
+                    ));
+            }
+            Some(preview::PreviewData::Unsupported(message)) => {
+                pane = pane.child(div().pt_6().text_sm().text_color(rgb(SECONDARY)).child(message));
+            }
+            None => {
+                pane = pane.child(div().pt_6().text_sm().text_color(rgb(SECONDARY))
+                    .child(if self.preview_file.is_some() {
+                        "Carregando pré-visualização..."
+                    } else {
+                        "Selecione um arquivo para pré-visualizar."
+                    }));
+            }
+        }
+        pane
+    }
+
     fn details_panel(&mut self, cx: &mut Context<Self>) -> Div {
         let item = self.selected.as_ref().and_then(|path| {
             self.entries
@@ -1347,6 +1425,7 @@ impl Render for FilesApp {
             .on_action(cx.listener(|this, _: &NewTab, _, cx| this.new_tab(cx)))
             .on_action(cx.listener(|this, _: &CloseTab, _, cx| this.close_tab(cx)))
             .on_action(cx.listener(|this, _: &ToggleDetails, _, cx| this.toggle_details(cx)))
+            .on_action(cx.listener(|this, _: &TogglePreview, _, cx| this.toggle_preview(cx)))
             .on_action(cx.listener(|this, _: &ToggleView, _, cx| this.toggle_view(cx)))
             .size_full()
             .flex()
@@ -1395,7 +1474,8 @@ impl Render for FilesApp {
                             .flex_col()
                             .child(self.file_list(cx)),
                     )
-                    .when(self.details_open, |this| this.child(self.details_panel(cx))),
+                    .when(self.details_open, |this| this.child(self.details_panel(cx)))
+                    .when(self.preview_open, |this| this.child(self.preview_panel())),
             )
             .child(div().bg(rgb(WINDOW_BG)).child(
                 StatusBar::new().left(self.status.clone()).right(
