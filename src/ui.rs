@@ -696,6 +696,7 @@ impl FilesApp {
     // The reference app has a file-tree pane, not a dashboard-style sidebar.
     // Ancestors and immediate child folders form the visible navigation hierarchy.
     fn navigation_tree(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
+        let view = cx.entity();
         let quick_access = self
             .shortcuts
             .clone()
@@ -703,6 +704,9 @@ impl FilesApp {
             .enumerate()
             .map(|(index, (label, path))| {
                 let active = self.directory == path;
+                let context_view = view.clone();
+                let context_path = path.clone();
+                let pinned = self.pinned.contains(&path);
                 let icon = if label.starts_with("Disco") {
                     IconName::HardDrive
                 } else {
@@ -723,6 +727,34 @@ impl FilesApp {
                     .child(Icon::new(icon).small().text_color(rgb(0xD69E42)))
                     .child(label)
                     .on_click(cx.listener(move |this, _, _, cx| this.navigate(path.clone(), cx)))
+                    .context_menu(move |menu, window, _| {
+                        let open = context_path.clone();
+                        let new_tab = context_path.clone();
+                        let unpin = context_path.clone();
+                        let pin = context_path.clone();
+                        let mut menu = menu.min_w(px(220.))
+                            .item(PopupMenuItem::new("Abrir").icon(IconName::FolderOpen)
+                                .on_click(window.listener_for(&context_view, move |this, _, _, cx| {
+                                    this.navigate(open.clone(), cx);
+                                })))
+                            .item(PopupMenuItem::new("Abrir em nova aba").icon(IconName::Files)
+                                .on_click(window.listener_for(&context_view, move |this, _, _, cx| {
+                                    this.open_in_new_tab(new_tab.clone(), cx);
+                                })))
+                            .separator();
+                        if pinned {
+                            menu = menu.item(PopupMenuItem::new("Desafixar do Acesso rápido").icon(IconName::PinOff)
+                                .on_click(window.listener_for(&context_view, move |this, _, _, cx| {
+                                    this.unpin_folder(&unpin, cx);
+                                })));
+                        } else {
+                            menu = menu.item(PopupMenuItem::new("Fixar no Acesso rápido").icon(IconName::Pin)
+                                .on_click(window.listener_for(&context_view, move |this, _, _, cx| {
+                                    this.pin_folder(pin.clone(), cx);
+                                })));
+                        }
+                        menu
+                    })
             })
             .collect::<Vec<_>>();
 
@@ -939,6 +971,7 @@ impl FilesApp {
             .cloned()
             .collect::<Vec<_>>();
         let tiles = self.view_mode == ViewMode::Tiles;
+        let view = cx.entity();
         let mut list = div()
             .id("explorer-file-scroller")
             .flex_1()
@@ -1003,6 +1036,9 @@ impl FilesApp {
                     }
                 };
                 let path = entry.path.clone();
+                let context_path = path.clone();
+                let context_view = view.clone();
+                let pinned = self.pinned.contains(&path);
                 if tiles {
                     list = list.child(
                         div().id(("tile", index))
@@ -1022,7 +1058,10 @@ impl FilesApp {
                                     let additive = matches!(event, ClickEvent::Mouse(click) if click.up.modifiers.control);
                                     this.select_entry(path.clone(), additive, cx);
                                 }
-                            })),
+                            }))
+                            .context_menu(move |menu, window, _| {
+                                file_context_menu(menu, window, &context_view, context_path.clone(), folder, pinned)
+                            }),
                     );
                 } else {
                     let size = if folder {
@@ -1059,7 +1098,10 @@ impl FilesApp {
                                     let additive = matches!(event, ClickEvent::Mouse(click) if click.up.modifiers.control);
                                     this.select_entry(path.clone(), additive, cx);
                                 }
-                            })),
+                            }))
+                            .context_menu(move |menu, window, _| {
+                                file_context_menu(menu, window, &context_view, context_path.clone(), folder, pinned)
+                            }),
                     );
                 }
             }
